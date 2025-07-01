@@ -305,7 +305,15 @@ speedApply.MouseButton1Click:Connect(function()
 	end
 end)
 
-
+jumpApply.MouseButton1Click:Connect(function()
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		local val = tonumber(jumpBox.Text)
+		if val then
+			humanoid.JumpPower = val
+		end
+	end
+end)
 
 noclipButton.MouseButton1Click:Connect(function()
 	noclipEnabled = not noclipEnabled

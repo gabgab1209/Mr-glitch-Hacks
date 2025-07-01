@@ -161,7 +161,40 @@ createLine(backgroundFrame, 100)
 
 -- WalkSpeed and JumpPower UI setup (same as before)
 -- [Cut here for space — this section is identical to earlier script]
+-- WalkSpeed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -20, 0, 20)
+speedLabel.Position = UDim2.new(0, 10, 0, 110)
+speedLabel.Text = "Set WalkSpeed"
+speedLabel.TextColor3 = Color3.new(1, 1, 1)
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.TextScaled = true
+speedLabel.Parent = backgroundFrame
 
+-- WalkSpeed TextBox
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0, 200, 0, 40)
+speedBox.Position = UDim2.new(0, 10, 0, 140)
+speedBox.PlaceholderText = "e.g. 100"
+speedBox.Text = ""
+speedBox.TextScaled = true
+speedBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.TextColor3 = Color3.new(0, 0, 0)
+speedBox.Parent = backgroundFrame
+roundify(speedBox, 8)
+
+-- Apply Button
+local speedApply = Instance.new("TextButton")
+speedApply.Size = UDim2.new(0, 120, 0, 40)
+speedApply.Position = UDim2.new(0, 220, 0, 140)
+speedApply.Text = "Apply Speed"
+speedApply.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+speedApply.TextColor3 = Color3.new(1, 1, 1)
+speedApply.TextScaled = true
+speedApply.Parent = backgroundFrame
+roundify(speedApply, 8)
 
 -- Noclip & Fly Buttons
 local noclipButton = Instance.new("TextButton")

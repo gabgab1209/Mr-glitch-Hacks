@@ -305,6 +305,8 @@ speedApply.MouseButton1Click:Connect(function()
 	end
 end)
 
+
+
 noclipButton.MouseButton1Click:Connect(function()
 	noclipEnabled = not noclipEnabled
 	noclipButton.Text = noclipEnabled and "✅ Noclip: ON" or "🚫 Noclip: OFF"

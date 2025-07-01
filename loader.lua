@@ -162,6 +162,7 @@ createLine(backgroundFrame, 100)
 -- WalkSpeed and JumpPower UI setup (same as before)
 -- [Cut here for space — this section is identical to earlier script]
 
+
 -- Noclip & Fly Buttons
 local noclipButton = Instance.new("TextButton")
 noclipButton.Size = UDim2.new(0, 140, 0, 40)

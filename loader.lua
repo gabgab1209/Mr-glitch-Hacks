@@ -295,7 +295,15 @@ toggleButton.MouseButton1Click:Connect(function()
 end)
 
 -- Replace with your WalkSpeed & JumpPower logic here (omitted for brevity)
-
+speedApply.MouseButton1Click:Connect(function()
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		local val = tonumber(speedBox.Text)
+		if val then
+			humanoid.WalkSpeed = val
+		end
+	end
+end)
 
 noclipButton.MouseButton1Click:Connect(function()
 	noclipEnabled = not noclipEnabled

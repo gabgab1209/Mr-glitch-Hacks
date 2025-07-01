@@ -227,6 +227,7 @@ jumpApply.TextColor3 = Color3.new(1, 1, 1)
 jumpApply.TextScaled = true
 jumpApply.Parent = backgroundFrame
 roundify(jumpApply, 8)
+
 -- Noclip & Fly Buttons
 local noclipButton = Instance.new("TextButton")
 noclipButton.Size = UDim2.new(0, 140, 0, 40)

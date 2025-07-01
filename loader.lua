@@ -196,7 +196,37 @@ speedApply.TextScaled = true
 speedApply.Parent = backgroundFrame
 roundify(speedApply, 8)
 
+local jumpLabel = Instance.new("TextLabel")
+jumpLabel.Size = UDim2.new(1, -20, 0, 20)
+jumpLabel.Position = UDim2.new(0, 10, 0, 210)
+jumpLabel.Text = "Set JumpPower"
+jumpLabel.TextColor3 = Color3.new(1, 1, 1)
+jumpLabel.BackgroundTransparency = 1
+jumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+jumpLabel.Font = Enum.Font.SourceSans
+jumpLabel.TextScaled = true
+jumpLabel.Parent = backgroundFrame
 
+local jumpBox = Instance.new("TextBox")
+jumpBox.Size = UDim2.new(0, 200, 0, 40)
+jumpBox.Position = UDim2.new(0, 10, 0, 240)
+jumpBox.PlaceholderText = "e.g. 120"
+jumpBox.Text = ""
+jumpBox.TextScaled = true
+jumpBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+jumpBox.TextColor3 = Color3.new(0, 0, 0)
+jumpBox.Parent = backgroundFrame
+roundify(jumpBox, 8)
+
+local jumpApply = Instance.new("TextButton")
+jumpApply.Size = UDim2.new(0, 120, 0, 40)
+jumpApply.Position = UDim2.new(0, 220, 0, 240)
+jumpApply.Text = "Apply Jump"
+jumpApply.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+jumpApply.TextColor3 = Color3.new(1, 1, 1)
+jumpApply.TextScaled = true
+jumpApply.Parent = backgroundFrame
+roundify(jumpApply, 8)
 -- Noclip & Fly Buttons
 local noclipButton = Instance.new("TextButton")
 noclipButton.Size = UDim2.new(0, 140, 0, 40)

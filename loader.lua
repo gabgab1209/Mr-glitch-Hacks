@@ -132,6 +132,21 @@ closeButton.Text = "❌ Close"
 closeButton.Parent = backgroundFrame
 roundify(closeButton, 8)
 
+local deleteButton = Instance.new("TextButton")
+deleteButton.Size = UDim2.new(0, 100, 0, 40)
+deleteButton.Position = UDim2.new(1, -220, 0, 10)
+deleteButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+deleteButton.TextColor3 = Color3.new(1, 1, 1)
+deleteButton.Text = "🗑️ Delete"
+deleteButton.Parent = backgroundFrame
+roundify(deleteButton, 8)
+deleteButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    if flyGui then
+        flyGui:Destroy()
+    end
+end)
+
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 50, 0, 50)
 minimizeButton.Position = UDim2.new(0, 10, 1, -60)

@@ -125,7 +125,7 @@ roundify(title, 0)
 
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 60, 0, 40)
-closeButton.Position = UDim2.new(1, -110, 0, 10)
+closeButton.Position = UDim2.new(1, -220, 0, 10)
 closeButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 closeButton.TextColor3 = Color3.new(1, 1, 1)
 closeButton.Text = "-"
@@ -134,7 +134,7 @@ roundify(closeButton, 8)
 
 local deleteButton = Instance.new("TextButton")
 deleteButton.Size = UDim2.new(0, 60, 0, 40)
-deleteButton.Position = UDim2.new(1, -220, 0, 10)
+deleteButton.Position = UDim2.new(1, -110, 0, 10)
 deleteButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 deleteButton.TextColor3 = Color3.new(1, 1, 1)
 deleteButton.Text = "X"

@@ -128,7 +128,7 @@ closeButton.Size = UDim2.new(0, 100, 0, 40)
 closeButton.Position = UDim2.new(1, -110, 0, 10)
 closeButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 closeButton.TextColor3 = Color3.new(1, 1, 1)
-closeButton.Text = "➕ minimize"
+closeButton.Text = "-"
 closeButton.Parent = backgroundFrame
 roundify(closeButton, 8)
 
@@ -137,7 +137,7 @@ deleteButton.Size = UDim2.new(0, 100, 0, 40)
 deleteButton.Position = UDim2.new(1, -220, 0, 10)
 deleteButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 deleteButton.TextColor3 = Color3.new(1, 1, 1)
-deleteButton.Text = "❌"
+deleteButton.Text = "X"
 deleteButton.Parent = backgroundFrame
 roundify(deleteButton, 8)
 deleteButton.MouseButton1Click:Connect(function()

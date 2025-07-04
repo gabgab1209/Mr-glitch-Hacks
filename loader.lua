@@ -266,6 +266,18 @@ local player = game.Players.LocalPlayer
 	flyButton.Parent = backgroundFrame
 	roundify(flyButton, 8)
 
+	local afkButton = Instance.new("TextButton")
+    afkButton.Size = UDim2.new(0, 140, 0, 40)
+    afkButton.Position = UDim2.new(0, 10, 0, 420)
+    afkButton.Text = "❌ Anti-AFK: OFF"
+    afkButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    afkButton.TextColor3 = Color3.new(1, 1, 1)
+    afkButton.TextScaled = true
+    afkButton.Font = Enum.Font.SourceSansBold
+    afkButton.Parent = backgroundFrame
+    roundify(afkButton, 8)
+
+
 	-- Show GUI
 	-- Initial position (off screen to the left)
 	intro.Position = UDim2.new(-1, 0, 0, 0)
@@ -435,3 +447,27 @@ local player = game.Players.LocalPlayer
 	bindFlyButton(btnRight, "Right")
 	bindFlyButton(btnForward, "Forward")
 	bindFlyButton(btnBack, "Back")
+	-- Anti-AFK
+	local antiAfkEnabled = false
+    local afkConnection = nil
+
+    afkButton.MouseButton1Click:Connect(function()
+		antiAfkEnabled = not antiAfkEnabled
+		afkButton.Text = antiAfkEnabled and "✅ Anti-AFK: ON" or "❌ Anti-AFK: OFF"
+		afkButton.BackgroundColor3 = antiAfkEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+
+			if antiAfkEnabled then
+			if afkConnection then afkConnection:Disconnect() end
+			afkConnection = rs.Stepped:Connect(function()
+			-- simulate user activity every few minutes
+				if math.random(1, 600) == 1 then
+					local virtualUser = game:GetService("VirtualUser")
+					virtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+					wait(1)
+					virtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+				end
+			end)
+		else
+			if afkConnection then afkConnection:Disconnect() afkConnection = nil end
+		end
+	end)

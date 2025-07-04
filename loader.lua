@@ -252,11 +252,30 @@ flyButton.Parent = backgroundFrame
 roundify(flyButton, 8)
 
 -- Show GUI
-wait(1.5)
-ts:Create(intro, TweenInfo.new(2), {TextTransparency = 1}):Play()
-wait(2)
-intro:Destroy()
-backgroundFrame.Visible = true
+-- Initial position (off screen to the left)
+intro.Position = UDim2.new(-1, 0, 0, 0)
+-- Create and play the slide-in animation
+local slideIn = ts:Create(intro, TweenInfo.new(
+    1.5, -- Duration
+    Enum.EasingStyle.Back, -- Easing style
+    Enum.EasingDirection.Out -- Easing direction
+), {
+    Position = UDim2.new(0, 0, 0, 0), -- Final position
+    TextTransparency = 0 -- Fade in simultaneously
+})
+slideIn.Completed:Connect(function()
+    wait(1) -- Wait before fading out
+    -- Create and play fade out animation
+    local fadeOut = ts:Create(intro, TweenInfo.new(2), {
+        TextTransparency = 1
+    })
+    fadeOut.Completed:Connect(function()
+        intro:Destroy()
+        backgroundFrame.Visible = true
+    end)
+    fadeOut:Play()
+end)
+slideIn:Play()
 
 -- Functionality
 local humanoid = nil

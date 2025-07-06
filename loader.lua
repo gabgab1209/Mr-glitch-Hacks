@@ -276,6 +276,17 @@ local player = game.Players.LocalPlayer
     afkButton.Font = Enum.Font.SourceSansBold
     afkButton.Parent = backgroundFrame
     roundify(afkButton, 8)
+    
+    local godButton = Instance.new("TextButton")
+godButton.Size = UDim2.new(0, 140, 0, 40)
+godButton.Position = UDim2.new(0, 10, 0, 480)
+godButton.Text = "❌ God Mode: OFF"
+godButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+godButton.TextColor3 = Color3.new(1, 1, 1)
+godButton.TextScaled = true
+godButton.Font = Enum.Font.SourceSansBold
+godButton.Parent = backgroundFrame
+roundify(godButton, 8)
 
 
 	-- Show GUI

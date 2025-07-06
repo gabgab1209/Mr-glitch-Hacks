@@ -485,37 +485,56 @@ roundify(godButton, 8)
 
 local godModeEnabled = false
 local healthConnection = nil
-local stateBlockConnection = nil
+local stateConnection = nil
 
+local function enableGodMode()
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+
+	hum.MaxHealth = math.huge
+	hum.Health = math.huge
+
+	-- Reset if touched
+	if healthConnection then healthConnection:Disconnect() end
+	healthConnection = hum.HealthChanged:Connect(function(val)
+		if godModeEnabled and val < hum.MaxHealth then
+			hum.Health = hum.MaxHealth
+		end
+	end)
+
+	if stateConnection then stateConnection:Disconnect() end
+	stateConnection = hum.StateChanged:Connect(function(_, newState)
+		if godModeEnabled and newState == Enum.HumanoidStateType.Dead then
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+			task.wait()
+			hum.Health = hum.MaxHealth
+			hum:ChangeState(Enum.HumanoidStateType.Running)
+		end
+	end)
+end
+
+local function disableGodMode()
+	if healthConnection then healthConnection:Disconnect() healthConnection = nil end
+	if stateConnection then stateConnection:Disconnect() stateConnection = nil end
+end
+
+-- Toggle button logic
 godButton.MouseButton1Click:Connect(function()
 	godModeEnabled = not godModeEnabled
 	godButton.Text = godModeEnabled and "✅ God Mode: ON" or "❌ God Mode: OFF"
 	godButton.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 0, 0)
 
-	local char = player.Character
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-	if godModeEnabled and hum then
-		hum.MaxHealth = math.huge
-		hum.Health = math.huge
-
-		-- Prevent health drops
-		healthConnection = hum.HealthChanged:Connect(function()
-			if hum.Health < hum.MaxHealth then
-				hum.Health = hum.MaxHealth
-			end
-		end)
-
-		-- Block death state
-		stateBlockConnection = hum.StateChanged:Connect(function(_, new)
-			if new == Enum.HumanoidStateType.Dead then
-				hum:ChangeState(Enum.HumanoidStateType.Running)
-				hum.Health = hum.MaxHealth
-			end
-		end)
-
+	if godModeEnabled then
+		enableGodMode()
 	else
-		if healthConnection then healthConnection:Disconnect() end
-		if stateBlockConnection then stateBlockConnection:Disconnect() end
+		disableGodMode()
+	end
+end)
+
+-- Re-apply god mode on respawn
+player.CharacterAdded:Connect(function()
+	if godModeEnabled then
+		task.wait(1)
+		enableGodMode()
 	end
 end)

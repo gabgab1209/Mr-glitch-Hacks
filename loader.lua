@@ -482,3 +482,40 @@ roundify(godButton, 8)
 			if afkConnection then afkConnection:Disconnect() afkConnection = nil end
 		end
 	end)
+
+local godModeEnabled = false
+local healthConnection = nil
+local stateBlockConnection = nil
+
+godButton.MouseButton1Click:Connect(function()
+	godModeEnabled = not godModeEnabled
+	godButton.Text = godModeEnabled and "✅ God Mode: ON" or "❌ God Mode: OFF"
+	godButton.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 0, 0)
+
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+	if godModeEnabled and hum then
+		hum.MaxHealth = math.huge
+		hum.Health = math.huge
+
+		-- Prevent health drops
+		healthConnection = hum.HealthChanged:Connect(function()
+			if hum.Health < hum.MaxHealth then
+				hum.Health = hum.MaxHealth
+			end
+		end)
+
+		-- Block death state
+		stateBlockConnection = hum.StateChanged:Connect(function(_, new)
+			if new == Enum.HumanoidStateType.Dead then
+				hum:ChangeState(Enum.HumanoidStateType.Running)
+				hum.Health = hum.MaxHealth
+			end
+		end)
+
+	else
+		if healthConnection then healthConnection:Disconnect() end
+		if stateBlockConnection then stateBlockConnection:Disconnect() end
+	end
+end)

@@ -100,7 +100,7 @@ local player = game.Players.LocalPlayer
 
 	-- Main Frame
 	local backgroundFrame = Instance.new("Frame")
-	backgroundFrame.Size = UDim2.new(0, 420, 0, 425)
+	backgroundFrame.Size = UDim2.new(0, 420, 0, 500)
 	backgroundFrame.Position = UDim2.new(0.5, -210, 0.5, -260)
 	backgroundFrame.BackgroundColor3 = Color3.fromRGB(0, 102, 204)
 	backgroundFrame.BorderSizePixel = 0

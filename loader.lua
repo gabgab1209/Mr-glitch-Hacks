@@ -380,21 +380,7 @@ roundify(godButton, 8)
 		end
 	end)
 
-	noclipButton.MouseButton1Click:Connect(function()
-		noclipEnabled = not noclipEnabled
-		noclipButton.Text = noclipEnabled and "✅ Noclip: ON" or "🚫 Noclip: OFF"
-		noclipButton.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 60, 60)
-
-		local function setCollide(state)
-			local char = player.Character
-			if char then
-				for _, part in ipairs(char:GetDescendants()) do
-					if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-						part.CanCollide = state
-					end
-				end
-			end
-		end
+	
 
 	-- ✈️ Fly System
 	flyButton.MouseButton1Click:Connect(function()

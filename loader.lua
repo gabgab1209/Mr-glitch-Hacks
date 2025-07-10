@@ -396,17 +396,6 @@ roundify(godButton, 8)
 			end
 		end
 
-		if noclipEnabled then
-			setCollide(false)
-			noclipConnection = rs.Stepped:Connect(function()
-				setCollide(false)
-			end)
-		else
-			if noclipConnection then noclipConnection:Disconnect() end
-			setCollide(true)
-		end
-	end)
-
 	-- ✈️ Fly System
 	flyButton.MouseButton1Click:Connect(function()
 		flying = not flying

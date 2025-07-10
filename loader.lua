@@ -546,3 +546,4 @@ player.CharacterAdded:Connect(function()
 		enableGodMode()
 	end
 end)
+

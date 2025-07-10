@@ -30,7 +30,16 @@ end
 -- Ensure Noclip group does not collide with any other group
 PhysicsService:CollisionGroupSetCollidable("Noclip", "Default", false)
 PhysicsService:CollisionGroupSetCollidable("Noclip", "Noclip", false)
+local function setNoclipState(enabled)
+	local char = player.Character
+	if not char then return end
 
+	for _, part in pairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			PhysicsService:SetPartCollisionGroup(part, enabled and "Noclip" or "Default")
+		end
+	end
+end
 	-- Main GUI
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "MrGlitchGUI"

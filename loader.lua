@@ -30,6 +30,7 @@ end
 -- Ensure Noclip group does not collide with any other group
 PhysicsService:CollisionGroupSetCollidable("Noclip", "Default", false)
 PhysicsService:CollisionGroupSetCollidable("Noclip", "Noclip", false)
+
 	-- Main GUI
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "MrGlitchGUI"

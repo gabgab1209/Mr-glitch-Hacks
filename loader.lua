@@ -547,3 +547,13 @@ player.CharacterAdded:Connect(function()
 	end
 end)
 
+local function setNoclipState(enabled)
+	local char = player.Character
+	if not char then return end
+
+	for _, part in pairs(char:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			PhysicsService:SetPartCollisionGroup(part, enabled and "Noclip" or "Default")
+		end
+	end
+end

@@ -22,7 +22,14 @@ local PhysicsService = game:GetService("PhysicsService")
 		line.Parent = parent
 		roundify(line, 1)
 	end
+  -- Create 'Noclip' group if it doesn't exist
+if not pcall(function() PhysicsService:GetCollisionGroupId("Noclip") end) then
+	PhysicsService:CreateCollisionGroup("Noclip")
+end
 
+-- Ensure Noclip group does not collide with any other group
+PhysicsService:CollisionGroupSetCollidable("Noclip", "Default", false)
+PhysicsService:CollisionGroupSetCollidable("Noclip", "Noclip", false)
 	-- Main GUI
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "MrGlitchGUI"

@@ -380,7 +380,32 @@ roundify(godButton, 8)
 		end
 	end)
 
-	
+local noclipEnabled = false
+local noclipConnection = nil
+
+noclipButton.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled
+	noclipButton.Text = noclipEnabled and "✅ Noclip: ON" or "🚫 Noclip: OFF"
+	noclipButton.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 60, 60)
+
+	if noclipEnabled then
+		setNoclipState(true)
+		noclipConnection = rs.Stepped:Connect(function()
+			setNoclipState(true)
+		end)
+	else
+		if noclipConnection then noclipConnection:Disconnect() end
+		setNoclipState(false)
+	end
+end)
+
+-- Re-apply after respawn
+player.CharacterAdded:Connect(function()
+	if noclipEnabled then
+		wait(1)
+		setNoclipState(true)
+	end
+end)
 
 	-- ✈️ Fly System
 	flyButton.MouseButton1Click:Connect(function()

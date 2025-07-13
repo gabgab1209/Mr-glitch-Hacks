@@ -1,4 +1,4 @@
--- SERVICES
+-- ⛏️ SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
@@ -6,12 +6,14 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- STATE
+-- 📌 STATE
 local aimbotEnabled = false
 local dragging = false
 local dragInput, dragStart, startPos
+local lastAttacker = nil
+local lastDamagedTime = 0
 
--- GUI
+-- 📦 GUI SETUP
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "PvPGui"
 screenGui.ResetOnSpawn = false
@@ -25,7 +27,7 @@ panel.BorderSizePixel = 0
 panel.Active = true
 panel.Parent = screenGui
 
--- Dragging
+-- 🖱️ Dragging
 panel.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
@@ -48,11 +50,12 @@ end)
 UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then
 		local delta = input.Position - dragStart
-		panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 	end
 end)
 
--- Button Maker
+-- 🔘 BUTTON CREATOR
 local function createButton(text, yPos)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 190, 0, 30)
@@ -67,7 +70,7 @@ end
 local toggleAimbotBtn = createButton("Toggle Premium Aimbot 🎯", 10)
 local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
 
--- Minimize & Close
+-- ❌ Minimize & Close
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
 minimizeBtn.Position = UDim2.new(1, -35, 0, 150)
@@ -93,7 +96,7 @@ restoreBtn.TextColor3 = Color3.new(1, 1, 1)
 restoreBtn.Visible = false
 restoreBtn.Parent = screenGui
 
--- Force Lighting (Full Bright & No Fog)
+-- 💡 LIGHTING
 local function forceLighting()
 	Lighting.FogEnd = 1e10
 	Lighting.Brightness = 2
@@ -104,12 +107,26 @@ end
 
 forceLighting()
 Lighting:GetPropertyChangedSignal("FogEnd"):Connect(forceLighting)
-player.CharacterAdded:Connect(function()
+
+player.CharacterAdded:Connect(function(char)
 	task.wait(1)
 	forceLighting()
+
+	local humanoid = char:WaitForChild("Humanoid", 5)
+	if humanoid then
+		humanoid.HealthChanged:Connect(function(newHealth)
+			if newHealth < humanoid.MaxHealth then
+				local tag = humanoid:FindFirstChild("creator")
+				if tag and tag:IsA("ObjectValue") and tag.Value and tag.Value:IsA("Player") then
+					lastAttacker = tag.Value
+					lastDamagedTime = tick()
+				end
+			end
+		end)
+	end
 end)
 
--- FPS Boost
+-- ⚡ FPS BOOST
 boostFpsBtn.MouseButton1Click:Connect(function()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Decal") or obj:IsA("Texture") then
@@ -121,7 +138,7 @@ boostFpsBtn.MouseButton1Click:Connect(function()
 	forceLighting()
 end)
 
--- GUI Control
+-- ❌ GUI BUTTONS
 closeBtn.MouseButton1Click:Connect(function()
 	screenGui:Destroy()
 end)
@@ -136,7 +153,7 @@ restoreBtn.MouseButton1Click:Connect(function()
 	restoreBtn.Visible = false
 end)
 
--- ESP Management
+-- 🔴 ESP
 local function clearESP()
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p.Character and p.Character:FindFirstChild("ESP") then
@@ -147,27 +164,26 @@ end
 
 local function createESP(p)
 	local char = p.Character
-	if char and not char:FindFirstChild("ESP") then
-		local head = char:FindFirstChild("Head")
-		if head then
-			local esp = Instance.new("BillboardGui")
-			esp.Name = "ESP"
-			esp.Adornee = head
-			esp.Size = UDim2.new(0, 100, 0, 20)
-			esp.AlwaysOnTop = true
-			esp.StudsOffset = Vector3.new(0, 2, 0)
-			esp.Parent = char
+	if not char or char:FindFirstChild("ESP") then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
 
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(1, 0, 1, 0)
-			label.BackgroundTransparency = 1
-			label.Text = p.Name
-			label.TextColor3 = Color3.new(1, 0, 0)
-			label.TextStrokeTransparency = 0.5
-			label.TextScaled = true
-			label.Parent = esp
-		end
-	end
+	local esp = Instance.new("BillboardGui")
+	esp.Name = "ESP"
+	esp.Adornee = head
+	esp.Size = UDim2.new(0, 100, 0, 20)
+	esp.AlwaysOnTop = true
+	esp.StudsOffset = Vector3.new(0, 2, 0)
+	esp.Parent = char
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = p.Name
+	label.TextColor3 = Color3.new(1, 0, 0)
+	label.TextStrokeTransparency = 0.5
+	label.TextScaled = true
+	label.Parent = esp
 end
 
 local function updateESP()
@@ -191,75 +207,82 @@ local function updateESP()
 	end
 end
 
--- Raycast with penetrable material skip
-local function canSeeTarget(origin, targetPos, character)
-	local direction = (targetPos - origin).Unit * 300
+-- 🧠 WALL CHECK RAYCAST
+local function canSeeTarget(origin, targetPos, targetChar)
+	local dir = (targetPos - origin).Unit * 300
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
 	rayParams.FilterDescendantsInstances = {player.Character}
 	rayParams.IgnoreWater = true
 
-	local result = workspace:Raycast(origin, direction, rayParams)
+	local result = workspace:Raycast(origin, dir, rayParams)
 
 	while result do
-		local hit = result.Instance
-		if hit and hit:IsDescendantOf(character) then
+		local part = result.Instance
+		if not part then break end
+
+		if part:IsDescendantOf(targetChar) then
 			return true
 		end
 
-		local material = result.Material
-		if material == Enum.Material.Glass
-			or material == Enum.Material.Neon
-			or material == Enum.Material.ForceField
-			or material == Enum.Material.Air
-			or (hit and hit.Transparency > 0.7)
-		then
-			local newOrigin = result.Position + direction.Unit * 0.1
-			local newDirection = (targetPos - newOrigin).Unit * (300 - (newOrigin - origin).Magnitude)
-			result = workspace:Raycast(newOrigin, newDirection, rayParams)
+		local mat = part.Material
+		if mat == Enum.Material.Glass or mat == Enum.Material.Neon or mat == Enum.Material.ForceField or mat == Enum.Material.Air or part.Transparency > 0.7 then
+			local newOrigin = result.Position + dir.Unit * 0.1
+			local newDir = (targetPos - newOrigin).Unit * (300 - (newOrigin - origin).Magnitude)
+			result = workspace:Raycast(newOrigin, newDir, rayParams)
 		else
-			return false
+			break
 		end
 	end
 
 	return false
 end
 
--- Closest Target
+-- 🎯 TARGET ACQUISITION
 local function getClosestTarget()
-	local closest = nil
+	local bestTarget = nil
 	local shortest = 300
+
+	if lastAttacker and tick() - lastDamagedTime < 3 then
+		local char = lastAttacker.Character
+		local head = char and char:FindFirstChild("Head")
+		local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+		if head and hum and hum.Health > 0 then
+			local dist = (camera.CFrame.Position - head.Position).Magnitude
+			local _, onScreen = camera:WorldToViewportPoint(head.Position)
+			if dist <= 300 and onScreen and canSeeTarget(camera.CFrame.Position, head.Position, char) then
+				return head
+			end
+		end
+	end
 
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player and p.Team ~= player.Team then
 			local char = p.Character
 			local head = char and char:FindFirstChild("Head")
-			local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
-
-			if head and humanoid and humanoid.Health > 0 then
+			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+			if head and hum and hum.Health > 0 then
 				local dist = (camera.CFrame.Position - head.Position).Magnitude
-				if dist < shortest then
-					local _, onScreen = camera:WorldToViewportPoint(head.Position)
-					if onScreen and canSeeTarget(camera.CFrame.Position, head.Position, char) then
-						closest = head
-						shortest = dist
-					end
+				local _, onScreen = camera:WorldToViewportPoint(head.Position)
+				if dist < shortest and onScreen and canSeeTarget(camera.CFrame.Position, head.Position, char) then
+					bestTarget = head
+					shortest = dist
 				end
 			end
 		end
 	end
 
-	return closest
+	return bestTarget
 end
 
--- Aimbot Toggle
+-- 🎯 TOGGLE AIMBOT
 toggleAimbotBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
 	toggleAimbotBtn.Text = aimbotEnabled and "Aimbot: ON 🎯" or "Toggle Premium Aimbot 🎯"
 	if not aimbotEnabled then clearESP() end
 end)
 
--- Main Runtime
+-- 🔁 MAIN LOOP
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		local target = getClosestTarget()

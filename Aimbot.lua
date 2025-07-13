@@ -1,37 +1,39 @@
--- 🔧 SERVICES
+-- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- 🔐 STATE
+-- STATE
 local aimbotEnabled = false
 local autoFireEnabled = false
 local circleDraggable = true
+local guiDraggable = true
 local draggingCircle = false
+local draggingPanel = false
 local dragOffset = nil
+local panelDragInput, panelDragStart, panelStartPos
 local priorityTarget = nil
 local priorityTimeout = 0
 local lastHealth = 100
 
--- 📦 GUI ROOT
+-- GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "PvP_UltraGUI"
+screenGui.Name = "PvP_UI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 
--- 🎯 MAIN PANEL
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 220, 0, 200)
+panel.Size = UDim2.new(0, 220, 0, 250)
 panel.Position = UDim2.new(0, 20, 0, 100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 0
 panel.Parent = screenGui
 
--- 🔘 Create Button Utility
 local function createButton(text, yPos)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 190, 0, 30)
@@ -45,13 +47,16 @@ local function createButton(text, yPos)
 	return btn
 end
 
--- 🔘 GUI Buttons
+-- GUI Buttons
 local toggleAimbotBtn = createButton("Toggle Aimbot 🎯", 10)
 local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
 local autoFireToggleBtn = createButton("AutoFire: OFF 🔘", 90)
 local draggableToggleBtn = createButton("Draggable: ON 🖱️", 130)
+local minimizeBtn = createButton("Minimize ⏬", 170)
+local restoreBtn = createButton("Restore ⏫", 210)
+restoreBtn.Visible = false
 
--- 🔴 Autofire Circle
+-- AUTO FIRE CIRCLE
 local autofireCircle = Instance.new("Frame", screenGui)
 autofireCircle.Size = UDim2.new(0, 80, 0, 80)
 autofireCircle.Position = UDim2.new(0.5, -40, 0.8, -40)
@@ -66,7 +71,22 @@ autofireCircle.Name = "AutoFireCircle"
 local uicorner = Instance.new("UICorner", autofireCircle)
 uicorner.CornerRadius = UDim.new(1, 0)
 
--- 🎮 Draggable Circle Logic
+-- DRAGGING: GUI Panel
+panel.InputBegan:Connect(function(input)
+	if guiDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingPanel = true
+		panelDragStart = input.Position
+		panelStartPos = panel.Position
+	end
+end)
+
+panel.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		panelDragInput = input
+	end
+end)
+
+-- DRAGGING: Autofire Circle
 autofireCircle.InputBegan:Connect(function(input)
 	if circleDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
 		draggingCircle = true
@@ -74,20 +94,42 @@ autofireCircle.InputBegan:Connect(function(input)
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		draggingCircle = false
-	end
-end)
-
+-- SHARED DRAG LOGIC
 UserInputService.InputChanged:Connect(function(input)
+	-- Panel drag
+	if input == panelDragInput and draggingPanel and guiDraggable then
+		local delta = input.Position - panelDragStart
+		panel.Position = UDim2.new(panelStartPos.X.Scale, panelStartPos.X.Offset + delta.X,
+			panelStartPos.Y.Scale, panelStartPos.Y.Offset + delta.Y)
+	end
+
+	-- Circle drag
 	if draggingCircle and circleDraggable and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local newPos = input.Position - dragOffset
 		autofireCircle.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
 	end
 end)
 
--- ⚙️ Button Logic
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingPanel = false
+		draggingCircle = false
+	end
+end)
+
+-- BUTTON LOGIC
+toggleAimbotBtn.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	toggleAimbotBtn.Text = aimbotEnabled and "Aimbot: ON 🎯" or "Toggle Aimbot 🎯"
+end)
+
+boostFpsBtn.MouseButton1Click:Connect(function()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Decal") or obj:IsA("Texture") then obj:Destroy()
+		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then obj.Enabled = false end
+	end
+end)
+
 autoFireToggleBtn.MouseButton1Click:Connect(function()
 	autoFireEnabled = not autoFireEnabled
 	autoFireToggleBtn.Text = autoFireEnabled and "AutoFire: ON 🔫" or "AutoFire: OFF 🔘"
@@ -96,10 +138,21 @@ end)
 
 draggableToggleBtn.MouseButton1Click:Connect(function()
 	circleDraggable = not circleDraggable
+	guiDraggable = circleDraggable
 	draggableToggleBtn.Text = circleDraggable and "Draggable: ON 🖱️" or "Draggable: OFF 🔒"
 end)
 
--- 💡 Full Brightness
+minimizeBtn.MouseButton1Click:Connect(function()
+	panel.Visible = false
+	restoreBtn.Visible = true
+end)
+
+restoreBtn.MouseButton1Click:Connect(function()
+	panel.Visible = true
+	restoreBtn.Visible = false
+end)
+
+-- FULL BRIGHT
 local function forceLighting()
 	Lighting.FogEnd = 1e10
 	Lighting.Brightness = 2
@@ -145,16 +198,7 @@ player.CharacterAdded:Connect(function(char)
 	end
 end)
 
--- ⚡ FPS Boost
-boostFpsBtn.MouseButton1Click:Connect(function()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Decal") or obj:IsA("Texture") then obj:Destroy()
-		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then obj.Enabled = false end
-	end
-	forceLighting()
-end)
-
--- 🔁 Wall Check
+-- WALL CHECK
 function canSeeTarget(origin, targetPos, char)
 	local dir = (targetPos - origin).Unit * 300
 	local params = RaycastParams.new()
@@ -177,11 +221,10 @@ function canSeeTarget(origin, targetPos, char)
 			break
 		end
 	end
-
 	return false
 end
 
--- 🔮 Aimbot Targeting
+-- TARGETING
 local function getPredictedHead(head)
 	local root = head.Parent:FindFirstChild("HumanoidRootPart")
 	if not root then return head.Position end
@@ -219,13 +262,7 @@ local function getClosestTarget()
 	return best
 end
 
--- 🔘 Toggle Aimbot
-toggleAimbotBtn.MouseButton1Click:Connect(function()
-	aimbotEnabled = not aimbotEnabled
-	toggleAimbotBtn.Text = aimbotEnabled and "Aimbot: ON 🎯" or "Toggle Aimbot 🎯"
-end)
-
--- 🧠 AutoFire Click Simulation
+-- BUTTON CLICK SIMULATOR
 local function simulateClickOnButton(guiObject)
 	if guiObject and (guiObject:IsA("TextButton") or guiObject:IsA("ImageButton")) then
 		coroutine.wrap(function()
@@ -234,9 +271,8 @@ local function simulateClickOnButton(guiObject)
 	end
 end
 
--- 🔁 Render Loop
+-- RENDER LOOP
 RunService.RenderStepped:Connect(function()
-	-- Aimbot
 	if aimbotEnabled then
 		local target = getClosestTarget()
 		if target then
@@ -245,7 +281,6 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 
-	-- AutoFire circle clicker
 	if autoFireEnabled then
 		local absPos = autofireCircle.AbsolutePosition
 		local absSize = autofireCircle.AbsoluteSize

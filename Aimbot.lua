@@ -1,294 +1,118 @@
--- ⛏️ SERVICES
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
+
 local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
 
--- 📌 STATE
-local aimbotEnabled = false
-local dragging = false
-local dragInput, dragStart, startPos
-local lastAttacker = nil
-local lastDamagedTime = 0
-
--- 📦 GUI SETUP
+-- 📦 ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "PvPGui"
+screenGui.Name = "AutoFireUI"
 screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 220, 0, 190)
-panel.Position = UDim2.new(0, 20, 0, 100)
-panel.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-panel.BorderSizePixel = 0
-panel.Active = true
-panel.Parent = screenGui
+-- 🔴 Autofire Circle
+local autofireCircle = Instance.new("Frame")
+autofireCircle.Size = UDim2.new(0, 80, 0, 80)
+autofireCircle.Position = UDim2.new(0.5, -40, 0.8, -40)
+autofireCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+autofireCircle.BackgroundTransparency = 0.5
+autofireCircle.BorderSizePixel = 0
+autofireCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+autofireCircle.Visible = false
+autofireCircle.Name = "AutoFireZone"
+autofireCircle.ClipsDescendants = true
+autofireCircle.Parent = screenGui
 
--- 🖱️ Dragging
-panel.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+local uicorner = Instance.new("UICorner", autofireCircle)
+uicorner.CornerRadius = UDim.new(1, 0)
+
+-- 🔘 State
+local autoFireEnabled = false
+local circleDraggable = true
+local dragging = false
+local dragOffset
+
+-- 🎮 Drag Events
+autofireCircle.InputBegan:Connect(function(input)
+	if circleDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
-		dragStart = input.Position
-		startPos = panel.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
+		dragOffset = input.Position - autofireCircle.AbsolutePosition
 	end
 end)
 
-panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-			startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	if dragging and circleDraggable and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local newPos = input.Position - dragOffset
+		autofireCircle.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
 	end
 end)
 
--- 🔘 BUTTON CREATOR
+-- 🔲 Main UI Panel
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0, 220, 0, 150)
+panel.Position = UDim2.new(0, 20, 0, 100)
+panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+panel.BorderSizePixel = 0
+panel.Parent = screenGui
+
 local function createButton(text, yPos)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 190, 0, 30)
 	btn.Position = UDim2.new(0, 15, 0, yPos)
 	btn.Text = text
 	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
 	btn.Parent = panel
 	return btn
 end
 
-local toggleAimbotBtn = createButton("Toggle Premium Aimbot 🎯", 10)
-local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
-
--- ❌ Minimize & Close
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-minimizeBtn.Position = UDim2.new(1, -35, 0, 150)
-minimizeBtn.Text = "🔽"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-minimizeBtn.Parent = panel
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 10)
-closeBtn.Text = "❌"
-closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Parent = panel
-
-local restoreBtn = Instance.new("TextButton")
-restoreBtn.Size = UDim2.new(0, 60, 0, 30)
-restoreBtn.Position = UDim2.new(0, 20, 0, 100)
-restoreBtn.Text = "📂"
-restoreBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-restoreBtn.TextColor3 = Color3.new(1, 1, 1)
-restoreBtn.Visible = false
-restoreBtn.Parent = screenGui
-
--- 💡 LIGHTING
-local function forceLighting()
-	Lighting.FogEnd = 1e10
-	Lighting.Brightness = 2
-	Lighting.GlobalShadows = false
-	Lighting.ClockTime = 14
-	Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
-end
-
-forceLighting()
-Lighting:GetPropertyChangedSignal("FogEnd"):Connect(forceLighting)
-
-player.CharacterAdded:Connect(function(char)
-	task.wait(1)
-	forceLighting()
-
-	local humanoid = char:WaitForChild("Humanoid", 5)
-	if humanoid then
-		humanoid.HealthChanged:Connect(function(newHealth)
-			if newHealth < humanoid.MaxHealth then
-				local tag = humanoid:FindFirstChild("creator")
-				if tag and tag:IsA("ObjectValue") and tag.Value and tag.Value:IsA("Player") then
-					lastAttacker = tag.Value
-					lastDamagedTime = tick()
-				end
-			end
-		end)
-	end
+-- 🔘 AutoFire Toggle
+local autoFireToggleBtn = createButton("AutoFire: OFF 🔘", 10)
+autoFireToggleBtn.MouseButton1Click:Connect(function()
+	autoFireEnabled = not autoFireEnabled
+	autoFireToggleBtn.Text = autoFireEnabled and "AutoFire: ON 🔫" or "AutoFire: OFF 🔘"
+	autofireCircle.Visible = autoFireEnabled
 end)
 
--- ⚡ FPS BOOST
-boostFpsBtn.MouseButton1Click:Connect(function()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Decal") or obj:IsA("Texture") then
-			obj:Destroy()
-		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
-			obj.Enabled = false
-		end
-	end
-	forceLighting()
+-- 🔒 Draggable Toggle
+local draggableToggleBtn = createButton("Draggable: ON 🖱️", 50)
+draggableToggleBtn.MouseButton1Click:Connect(function()
+	circleDraggable = not circleDraggable
+	draggableToggleBtn.Text = circleDraggable and "Draggable: ON 🖱️" or "Draggable: OFF 🔒"
 end)
 
--- ❌ GUI BUTTONS
-closeBtn.MouseButton1Click:Connect(function()
-	screenGui:Destroy()
-end)
-
-minimizeBtn.MouseButton1Click:Connect(function()
-	panel.Visible = false
-	restoreBtn.Visible = true
-end)
-
-restoreBtn.MouseButton1Click:Connect(function()
-	panel.Visible = true
-	restoreBtn.Visible = false
-end)
-
--- 🔴 ESP
-local function clearESP()
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p.Character and p.Character:FindFirstChild("ESP") then
-			p.Character.ESP:Destroy()
-		end
+-- 🧠 Button Press Simulation
+local function simulateClickOnButton(guiObject)
+	if guiObject and (guiObject:IsA("TextButton") or guiObject:IsA("ImageButton")) then
+		coroutine.wrap(function()
+			guiObject:Activate()
+		end)()
 	end
 end
 
-local function createESP(p)
-	local char = p.Character
-	if not char or char:FindFirstChild("ESP") then return end
-	local head = char:FindFirstChild("Head")
-	if not head then return end
-
-	local esp = Instance.new("BillboardGui")
-	esp.Name = "ESP"
-	esp.Adornee = head
-	esp.Size = UDim2.new(0, 100, 0, 20)
-	esp.AlwaysOnTop = true
-	esp.StudsOffset = Vector3.new(0, 2, 0)
-	esp.Parent = char
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = p.Name
-	label.TextColor3 = Color3.new(1, 0, 0)
-	label.TextStrokeTransparency = 0.5
-	label.TextScaled = true
-	label.Parent = esp
-end
-
-local function updateESP()
-	if not aimbotEnabled then
-		clearESP()
-		return
-	end
-
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= player and p.Team ~= player.Team then
-			local char = p.Character
-			local head = char and char:FindFirstChild("Head")
-			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-			if head and hum and hum.Health > 0 then
-				local dist = (camera.CFrame.Position - head.Position).Magnitude
-				if dist <= 300 then
-					createESP(p)
-				end
-			end
-		end
-	end
-end
-
--- 🧠 WALL CHECK RAYCAST
-local function canSeeTarget(origin, targetPos, targetChar)
-	local dir = (targetPos - origin).Unit * 300
-	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-	rayParams.FilterDescendantsInstances = {player.Character}
-	rayParams.IgnoreWater = true
-
-	local result = workspace:Raycast(origin, dir, rayParams)
-
-	while result do
-		local part = result.Instance
-		if not part then break end
-
-		if part:IsDescendantOf(targetChar) then
-			return true
-		end
-
-		local mat = part.Material
-		if mat == Enum.Material.Glass or mat == Enum.Material.Neon or mat == Enum.Material.ForceField or mat == Enum.Material.Air or part.Transparency > 0.7 then
-			local newOrigin = result.Position + dir.Unit * 0.1
-			local newDir = (targetPos - newOrigin).Unit * (300 - (newOrigin - origin).Magnitude)
-			result = workspace:Raycast(newOrigin, newDir, rayParams)
-		else
-			break
-		end
-	end
-
-	return false
-end
-
--- 🎯 TARGET ACQUISITION
-local function getClosestTarget()
-	local bestTarget = nil
-	local shortest = 300
-
-	if lastAttacker and tick() - lastDamagedTime < 3 then
-		local char = lastAttacker.Character
-		local head = char and char:FindFirstChild("Head")
-		local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-		if head and hum and hum.Health > 0 then
-			local dist = (camera.CFrame.Position - head.Position).Magnitude
-			local _, onScreen = camera:WorldToViewportPoint(head.Position)
-			if dist <= 300 and onScreen and canSeeTarget(camera.CFrame.Position, head.Position, char) then
-				return head
-			end
-		end
-	end
-
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= player and p.Team ~= player.Team then
-			local char = p.Character
-			local head = char and char:FindFirstChild("Head")
-			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-			if head and hum and hum.Health > 0 then
-				local dist = (camera.CFrame.Position - head.Position).Magnitude
-				local _, onScreen = camera:WorldToViewportPoint(head.Position)
-				if dist < shortest and onScreen and canSeeTarget(camera.CFrame.Position, head.Position, char) then
-					bestTarget = head
-					shortest = dist
-				end
-			end
-		end
-	end
-
-	return bestTarget
-end
-
--- 🎯 TOGGLE AIMBOT
-toggleAimbotBtn.MouseButton1Click:Connect(function()
-	aimbotEnabled = not aimbotEnabled
-	toggleAimbotBtn.Text = aimbotEnabled and "Aimbot: ON 🎯" or "Toggle Premium Aimbot 🎯"
-	if not aimbotEnabled then clearESP() end
-end)
-
--- 🔁 MAIN LOOP
+-- 🔁 AutoFire Detection Loop
 RunService.RenderStepped:Connect(function()
-	if aimbotEnabled then
-		local target = getClosestTarget()
-		if target then
-			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
+	if autoFireEnabled then
+		local absPos = autofireCircle.AbsolutePosition
+		local absSize = autofireCircle.AbsoluteSize
+		local center = absPos + (absSize / 2)
+
+		local uiObjects = GuiService:FindGuiObjectsAtPosition(center.X, center.Y)
+		for _, obj in ipairs(uiObjects) do
+			if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+				simulateClickOnButton(obj)
+				break
+			end
 		end
 	end
-	updateESP()
 end)

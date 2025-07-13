@@ -53,8 +53,16 @@ local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
 local autoFireToggleBtn = createButton("AutoFire: OFF 🔘", 90)
 local draggableToggleBtn = createButton("Draggable: ON 🖱️", 130)
 local minimizeBtn = createButton("Minimize ⏬", 170)
-local restoreBtn = createButton("Restore ⏫", 210)
+local restoreBtn = Instance.new("TextButton")
+restoreBtn.Size = UDim2.new(0, 60, 0, 30)
+restoreBtn.Position = UDim2.new(0, 20, 0, 100)
+restoreBtn.Text = "Restore ⏫"
+restoreBtn.TextColor3 = Color3.new(1, 1, 1)
+restoreBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+restoreBtn.Font = Enum.Font.Gotham
+restoreBtn.TextSize = 14
 restoreBtn.Visible = false
+restoreBtn.Parent = screenGui -- 👈 this is key!
 
 -- AUTO FIRE CIRCLE
 local autofireCircle = Instance.new("Frame", screenGui)

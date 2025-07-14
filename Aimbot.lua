@@ -15,8 +15,7 @@ local circleDraggable = true
 local guiDraggable = true
 local draggingCircle = false
 local draggingPanel = false
-local dragOffset = nil
-local panelDragInput, panelDragStart, panelStartPos
+local dragOffset, panelDragInput, panelDragStart, panelStartPos
 local priorityTarget = nil
 local priorityTimeout = 0
 local lastHealth = 100
@@ -28,7 +27,7 @@ screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 220, 0, 250)
+panel.Size = UDim2.new(0, 220, 0, 270)
 panel.Position = UDim2.new(0, 20, 0, 100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 0
@@ -47,12 +46,13 @@ local function createButton(text, yPos)
 	return btn
 end
 
--- GUI Buttons
+-- UI Buttons
 local toggleAimbotBtn = createButton("Toggle Aimbot 🎯", 10)
 local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
 local autoFireToggleBtn = createButton("AutoFire: OFF 🔘", 90)
 local draggableToggleBtn = createButton("Draggable: ON 🖱️", 130)
 local minimizeBtn = createButton("Minimize ⏬", 170)
+
 local restoreBtn = Instance.new("TextButton")
 restoreBtn.Size = UDim2.new(0, 60, 0, 30)
 restoreBtn.Position = UDim2.new(0, 20, 0, 100)
@@ -62,7 +62,7 @@ restoreBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 restoreBtn.Font = Enum.Font.Gotham
 restoreBtn.TextSize = 14
 restoreBtn.Visible = false
-restoreBtn.Parent = screenGui -- 👈 this is key!
+restoreBtn.Parent = screenGui
 
 -- AUTO FIRE CIRCLE
 local autofireCircle = Instance.new("Frame", screenGui)
@@ -78,52 +78,6 @@ autofireCircle.Name = "AutoFireCircle"
 
 local uicorner = Instance.new("UICorner", autofireCircle)
 uicorner.CornerRadius = UDim.new(1, 0)
-
--- DRAGGING: GUI Panel
-panel.InputBegan:Connect(function(input)
-	if guiDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
-		draggingPanel = true
-		panelDragStart = input.Position
-		panelStartPos = panel.Position
-	end
-end)
-
-panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		panelDragInput = input
-	end
-end)
-
--- DRAGGING: Autofire Circle
-autofireCircle.InputBegan:Connect(function(input)
-	if circleDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
-		draggingCircle = true
-		dragOffset = input.Position - autofireCircle.AbsolutePosition
-	end
-end)
-
--- SHARED DRAG LOGIC
-UserInputService.InputChanged:Connect(function(input)
-	-- Panel drag
-	if input == panelDragInput and draggingPanel and guiDraggable then
-		local delta = input.Position - panelDragStart
-		panel.Position = UDim2.new(panelStartPos.X.Scale, panelStartPos.X.Offset + delta.X,
-			panelStartPos.Y.Scale, panelStartPos.Y.Offset + delta.Y)
-	end
-
-	-- Circle drag
-	if draggingCircle and circleDraggable and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local newPos = input.Position - dragOffset
-		autofireCircle.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		draggingPanel = false
-		draggingCircle = false
-	end
-end)
 
 -- BUTTON LOGIC
 toggleAimbotBtn.MouseButton1Click:Connect(function()
@@ -158,6 +112,48 @@ end)
 restoreBtn.MouseButton1Click:Connect(function()
 	panel.Visible = true
 	restoreBtn.Visible = false
+end)
+
+-- DRAGGING
+panel.InputBegan:Connect(function(input)
+	if guiDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingPanel = true
+		panelDragStart = input.Position
+		panelStartPos = panel.Position
+	end
+end)
+
+panel.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		panelDragInput = input
+	end
+end)
+
+autofireCircle.InputBegan:Connect(function(input)
+	if circleDraggable and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingCircle = true
+		dragOffset = input.Position - autofireCircle.AbsolutePosition
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == panelDragInput and draggingPanel and guiDraggable then
+		local delta = input.Position - panelDragStart
+		panel.Position = UDim2.new(panelStartPos.X.Scale, panelStartPos.X.Offset + delta.X,
+			panelStartPos.Y.Scale, panelStartPos.Y.Offset + delta.Y)
+	end
+
+	if draggingCircle and circleDraggable and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local newPos = input.Position - dragOffset
+		autofireCircle.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingPanel = false
+		draggingCircle = false
+	end
 end)
 
 -- FULL BRIGHT
@@ -232,7 +228,7 @@ function canSeeTarget(origin, targetPos, char)
 	return false
 end
 
--- TARGETING
+-- AIMBOT
 local function getPredictedHead(head)
 	local root = head.Parent:FindFirstChild("HumanoidRootPart")
 	if not root then return head.Position end
@@ -270,7 +266,52 @@ local function getClosestTarget()
 	return best
 end
 
--- BUTTON CLICK SIMULATOR
+-- ESP
+local function createESP(p)
+	local char = p.Character
+	if not char or char:FindFirstChild("ESP") then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	local esp = Instance.new("BillboardGui")
+	esp.Name = "ESP"
+	esp.Adornee = head
+	esp.Size = UDim2.new(0, 100, 0, 20)
+	esp.AlwaysOnTop = true
+	esp.StudsOffset = Vector3.new(0, 2, 0)
+	esp.Parent = char
+
+	local label = Instance.new("TextLabel", esp)
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = p.Name
+	label.TextColor3 = Color3.new(1, 0, 0)
+	label.TextStrokeTransparency = 0.5
+	label.TextScaled = true
+end
+
+local function clearESP()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character and p.Character:FindFirstChild("ESP") then
+			p.Character.ESP:Destroy()
+		end
+	end
+end
+
+local function updateESP()
+	if not aimbotEnabled then
+		clearESP()
+		return
+	end
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Team ~= player.Team then
+			createESP(p)
+		end
+	end
+end
+
+-- CLICK SIMULATION
 local function simulateClickOnButton(guiObject)
 	if guiObject and (guiObject:IsA("TextButton") or guiObject:IsA("ImageButton")) then
 		coroutine.wrap(function()
@@ -279,7 +320,7 @@ local function simulateClickOnButton(guiObject)
 	end
 end
 
--- RENDER LOOP
+-- MAIN LOOP
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		local target = getClosestTarget()
@@ -301,4 +342,6 @@ RunService.RenderStepped:Connect(function()
 			end
 		end
 	end
+
+	updateESP()
 end)

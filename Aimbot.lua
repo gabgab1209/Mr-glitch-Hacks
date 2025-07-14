@@ -13,6 +13,7 @@ local camera = workspace.CurrentCamera
 local aimbotEnabled = false
 local autoFireEnabled = false
 local predictionEnabled = true
+local espEnabled = false
 local circleDraggable = true
 local guiDraggable = true
 local draggingCircle, draggingPanel, draggingRestore = false, false, false
@@ -51,7 +52,7 @@ end
 local toggleAimbotBtn = createButton("Toggle Aimbot 🎯", 10)
 local boostFpsBtn = createButton("Boost FPS ⚡️", 50)
 local autoFireToggleBtn = createButton("AutoFire: OFF 🔘", 90)
-local draggableToggleBtn = createButton("Draggable: ON 🖱️", 130)
+local espToggleBtn = createButton("ESP: OFF 👀", 130)
 local predictionToggleBtn = createButton("Prediction: ON 🎯", 170)
 local minimizeBtn = createButton("Minimize ⏬", 210)
 
@@ -96,10 +97,9 @@ autoFireToggleBtn.MouseButton1Click:Connect(function()
     autofireCircle.Visible = autoFireEnabled
 end)
 
-draggableToggleBtn.MouseButton1Click:Connect(function()
-    circleDraggable = not circleDraggable
-    guiDraggable = circleDraggable
-    draggableToggleBtn.Text = circleDraggable and "Draggable: ON 🖱️" or "Draggable: OFF 🔒"
+espToggleBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espToggleBtn.Text = espEnabled and "ESP: ON 👀" or "ESP: OFF 👀"
 end)
 
 predictionToggleBtn.MouseButton1Click:Connect(function()
@@ -117,6 +117,27 @@ restoreBtn.MouseButton1Click:Connect(function()
     restoreBtn.Visible = false
 end)
 
+-- DRAGGING: RESTORE BUTTON
+restoreBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingRestore = true
+        dragOffset = input.Position - restoreBtn.AbsolutePosition
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingRestore then
+        local newPos = input.Position - dragOffset
+        restoreBtn.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingRestore = false
+    end
+end)
+
 -- LIGHT FIX
 local function forceLighting()
     Lighting.FogEnd = 1e10
@@ -128,7 +149,7 @@ end
 forceLighting()
 Lighting:GetPropertyChangedSignal("FogEnd"):Connect(forceLighting)
 
--- SIMULATE REAL MOUSE CLICK
+-- SIMULATE MOUSE CLICK
 local function simulateMouseClick()
     VirtualInputManager:SendMouseButtonEvent(
         UserInputService:GetMouseLocation().X,
@@ -149,7 +170,7 @@ local function simulateMouseClick()
     )
 end
 
--- CAN SEE TARGET (wall-check)
+-- CAN SEE TARGET (WALL CHECK)
 local function canSeeTarget(origin, targetPos, targetCharacter)
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Blacklist
@@ -167,10 +188,10 @@ local function canSeeTarget(origin, targetPos, targetCharacter)
         return false
     end
 
-    return true -- No hit = visible
+    return true
 end
 
--- PREDICT HEAD POSITION
+-- PREDICTED HEAD
 local function predictHead(head)
     local root = head.Parent:FindFirstChild("HumanoidRootPart")
     return predictionEnabled and root and head.Position + root.Velocity * 0.15 or head.Position
@@ -236,6 +257,44 @@ local function getTargetHead()
     return bestHead
 end
 
+-- ESP
+local function createESP(p)
+    local char = p.Character
+    if not char then return end
+    if char:FindFirstChild("ESP") then char.ESP:Destroy() end
+
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "ESP"
+    esp.Adornee = head
+    esp.Size = UDim2.new(0, 100, 0, 20)
+    esp.AlwaysOnTop = true
+    esp.StudsOffset = Vector3.new(0, 2, 0)
+    esp.Parent = char
+
+    local label = Instance.new("TextLabel", esp)
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = p.Name
+    label.TextColor3 = Color3.new(1, 0, 0)
+    label.TextStrokeTransparency = 0.5
+    label.TextScaled = true
+end
+
+local function updateESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            if espEnabled and p.Team ~= player.Team then
+                createESP(p)
+            elseif p.Character and p.Character:FindFirstChild("ESP") then
+                p.Character.ESP:Destroy()
+            end
+        end
+    end
+end
+
 -- DAMAGE TRACKING
 player.CharacterAdded:Connect(function(char)
     task.wait(1)
@@ -283,4 +342,6 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+
+    updateESP()
 end)

@@ -115,3 +115,106 @@ end
 
 makeDraggable(mainFrame)
 makeDraggable(restoreBtn)
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+-- FPS Boost logic
+local function applyFPSBoost()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ShirtGraphic") then
+			obj:Destroy()
+		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+			obj.Enabled = false
+		end
+	end
+end
+
+-- Full Bright / No Fog
+local function applyFullBright()
+	Lighting.Brightness = 2
+	Lighting.FogEnd = 1e10
+	Lighting.GlobalShadows = false
+	Lighting.ClockTime = 14
+end
+
+Lighting:GetPropertyChangedSignal("FogEnd"):Connect(applyFullBright)
+Lighting:GetPropertyChangedSignal("ClockTime"):Connect(applyFullBright)
+applyFullBright()
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+	if toggleStates["Infinite Jump"] then
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum:ChangeState(Enum.HumanoidStateType.Jumping)
+			end
+		end
+	end
+end)
+
+-- NoClip
+RunService.Stepped:Connect(function()
+	if toggleStates["NoClip"] then
+		local char = player.Character
+		if char then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") and not part:IsDescendantOf(workspace.Camera) then
+					part.CanCollide = false
+				end
+			end
+		end
+	end
+end)
+
+-- Toggle Behavior Connections
+toggles["FPS Boost"].MouseButton1Click:Connect(function()
+	applyFPSBoost()
+end)
+
+toggles["Infinite Jump"].MouseButton1Click:Connect(function()
+	toggleStates["Infinite Jump"] = not toggleStates["Infinite Jump"]
+	local btn = toggles["Infinite Jump"]
+	btn.Text = toggleStates["Infinite Jump"] and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+
+toggles["NoClip"].MouseButton1Click:Connect(function()
+	toggleStates["NoClip"] = not toggleStates["NoClip"]
+	local btn = toggles["NoClip"]
+	btn.Text = toggleStates["NoClip"] and "NoClip: ON" or "NoClip: OFF"
+end)
+
+toggles["TP Walk"].MouseButton1Click:Connect(function()
+	toggleStates["TP Walk"] = not toggleStates["TP Walk"]
+	local btn = toggles["TP Walk"]
+	if toggleStates["TP Walk"] then
+		btn.Text = "TP Walk: ON"
+		local input = StarterGui:GetCore("ChatMakeSystemMessage") and tostring(game:GetService("StarterGui"):PromptTextInput("TP Walk Speed (e.g. 0.3)")) or "0.3"
+		toggleStates["TPWalkSpeed"] = tonumber(input) or 0.3
+	else
+		btn.Text = "TP Walk: OFF"
+	end
+end)
+
+toggles["Prediction"].MouseButton1Click:Connect(function()
+	toggleStates["Prediction"] = not toggleStates["Prediction"]
+	local btn = toggles["Prediction"]
+	btn.Text = toggleStates["Prediction"] and "Prediction: ON" or "Prediction: OFF"
+end)
+
+-- TP Walk Movement
+RunService.RenderStepped:Connect(function()
+	if toggleStates["TP Walk"] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local root = player.Character.HumanoidRootPart
+		local move = Vector3.zero
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0,0,-1) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0,0,1) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-1,0,0) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new(1,0,0) end
+		if move.Magnitude > 0 then
+			root.CFrame = root.CFrame + (root.CFrame.LookVector * toggleStates["TPWalkSpeed"])
+		end
+	end
+end)

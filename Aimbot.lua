@@ -115,6 +115,7 @@ end
 
 makeDraggable(mainFrame)
 makeDraggable(restoreBtn)
+
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")

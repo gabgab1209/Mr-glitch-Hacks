@@ -11,7 +11,7 @@ local toggles = {
 	Noclip = false,
 }
 
--- ============ SETUP CHARACTER ============
+-- Setup Jump + Noclip Logic
 local function setupCharacter()
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:WaitForChild("Humanoid")
@@ -36,15 +36,13 @@ end
 player.CharacterAdded:Connect(setupCharacter)
 if player.Character then setupCharacter() end
 
--- ============ UI BUILD ============
-
+-- UI Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TabbedNightGUI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = false
 screenGui.Parent = playerGui
 
--- 🔳 Main Frame
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 260, 0, 240)
 frame.Position = UDim2.new(0, 20, 0.3, 0)
@@ -52,11 +50,10 @@ frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Name = "MainFrame"
 frame.Parent = screenGui
 Instance.new("UICorner", frame)
 
--- 🔹 Top Tab Bar
+-- Top bar
 local tabBar = Instance.new("Frame")
 tabBar.Size = UDim2.new(1, 0, 0, 30)
 tabBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
@@ -64,7 +61,7 @@ tabBar.BorderSizePixel = 0
 tabBar.Parent = frame
 Instance.new("UICorner", tabBar)
 
--- 🛑 Close Button
+-- Close Button
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 22, 0, 22)
 closeButton.Position = UDim2.new(1, -26, 0, 4)
@@ -76,15 +73,38 @@ closeButton.BackgroundColor3 = Color3.fromRGB(140, 50, 50)
 Instance.new("UICorner", closeButton)
 closeButton.Parent = tabBar
 
--- 🔼 Page container
+-- Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 22, 0, 22)
+minimizeButton.Position = UDim2.new(1, -54, 0, 4)
+minimizeButton.Text = "—"
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextSize = 18
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(60, 100, 120)
+Instance.new("UICorner", minimizeButton)
+minimizeButton.Parent = tabBar
+
+local minimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	tabBar.Visible = not minimized
+	contentFrame.Visible = not minimized
+	frame.Size = minimized and UDim2.new(0, 260, 0, 32) or UDim2.new(0, 260, 0, 240)
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
+end)
+
+-- Content Area
 local contentFrame = Instance.new("Frame")
 contentFrame.Size = UDim2.new(1, 0, 1, -30)
 contentFrame.Position = UDim2.new(0, 0, 0, 30)
 contentFrame.BackgroundTransparency = 1
-contentFrame.Name = "Content"
 contentFrame.Parent = frame
 
--- 🧩 Utility: Create Tabs and Pages
+-- Pages and Tabs
 local pages = {}
 
 local function createPage(name)
@@ -119,16 +139,16 @@ local function createPage(name)
 	return page
 end
 
--- 🟦 Movement Page
+-- Movement Page
 local movementPage = createPage("Movement")
 
 local function createToggleButton(parent, labelText, order, toggleKey)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -20, 0, 40)
-	btn.Position = UDim2.new(0, 10, 0, 10 + ((order - 1) * 50))
+	btn.Size = UDim2.new(1, -20, 0, 36)
+	btn.Position = UDim2.new(0, 10, 0, 8 + ((order - 1) * 42))
 	btn.Text = labelText .. ": OFF"
 	btn.Font = Enum.Font.Gotham
-	btn.TextSize = 16
+	btn.TextSize = 15
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
 	Instance.new("UICorner", btn)
@@ -138,14 +158,59 @@ local function createToggleButton(parent, labelText, order, toggleKey)
 		toggles[toggleKey] = not toggles[toggleKey]
 		btn.Text = labelText .. (toggles[toggleKey] and ": ON ✅" or ": OFF")
 	end)
-
-	return btn
 end
 
 createToggleButton(movementPage, "Infinite Jump", 1, "InfiniteJump")
 createToggleButton(movementPage, "Noclip", 2, "Noclip")
 
--- 🟩 Server Info Page
+local speedBox = Instance.new("TextBox")
+speedBox.PlaceholderText = "WalkSpeed (e.g. 16)"
+speedBox.Size = UDim2.new(0.45, -5, 0, 36)
+speedBox.Position = UDim2.new(0, 10, 0, 104)
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 14
+speedBox.TextColor3 = Color3.new(1, 1, 1)
+speedBox.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+speedBox.ClearTextOnFocus = false
+Instance.new("UICorner", speedBox)
+speedBox.Parent = movementPage
+
+local jumpBox = Instance.new("TextBox")
+jumpBox.PlaceholderText = "JumpPower (e.g. 50)"
+jumpBox.Size = UDim2.new(0.45, -5, 0, 36)
+jumpBox.Position = UDim2.new(0.55, 10, 0, 104)
+jumpBox.Font = Enum.Font.Gotham
+jumpBox.TextSize = 14
+jumpBox.TextColor3 = Color3.new(1, 1, 1)
+jumpBox.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+jumpBox.ClearTextOnFocus = false
+Instance.new("UICorner", jumpBox)
+jumpBox.Parent = movementPage
+
+local applyButton = Instance.new("TextButton")
+applyButton.Size = UDim2.new(1, -20, 0, 36)
+applyButton.Position = UDim2.new(0, 10, 0, 148)
+applyButton.Text = "Apply Speed / Jump"
+applyButton.Font = Enum.Font.GothamSemibold
+applyButton.TextSize = 15
+applyButton.TextColor3 = Color3.new(1, 1, 1)
+applyButton.BackgroundColor3 = Color3.fromRGB(70, 100, 90)
+Instance.new("UICorner", applyButton)
+applyButton.Parent = movementPage
+
+applyButton.MouseButton1Click:Connect(function()
+	local character = player.Character
+	if character and character:FindFirstChild("Humanoid") then
+		local humanoid = character.Humanoid
+		local speed = tonumber(speedBox.Text)
+		local jump = tonumber(jumpBox.Text)
+
+		if speed then humanoid.WalkSpeed = speed end
+		if jump then humanoid.JumpPower = jump end
+	end
+end)
+
+-- Server Info Page
 local serverPage = createPage("Server Info")
 
 local infoLabel = Instance.new("TextLabel")
@@ -170,14 +235,9 @@ RunService.RenderStepped:Connect(function()
 	)
 end)
 
--- Default to first tab
+-- Show first tab by default
 task.wait()
 if #pages > 0 then
 	pages[1].Frame.Visible = true
 	pages[1].Button.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
 end
-
--- ❌ Close GUI
-closeButton.MouseButton1Click:Connect(function()
-	screenGui:Destroy()
-end)

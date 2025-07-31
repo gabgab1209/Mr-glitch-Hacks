@@ -460,3 +460,60 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+-- Add two new toggle states if not present:
+toggleStates["AutoFireLock"] = false
+toggleStates["DragLock"] = false
+
+-- Add drag lock toggle button
+local lockButton = Instance.new("TextButton", screenGui)
+lockButton.Size = UDim2.new(0, 120, 0, 30)
+lockButton.Position = UDim2.new(1, -130, 1, -40)
+lockButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+lockButton.TextColor3 = Color3.new(1,1,1)
+lockButton.Font = Enum.Font.Gotham
+lockButton.TextSize = 14
+lockButton.Text = "Lock Drag: OFF"
+lockButton.Visible = false
+
+-- Lock/unlock drag toggle logic
+lockButton.MouseButton1Click:Connect(function()
+	toggleStates["AutoFireLock"] = not toggleStates["AutoFireLock"]
+	lockButton.Text = toggleStates["AutoFireLock"] and "Lock Drag: ON" or "Lock Drag: OFF"
+end)
+
+-- Reconnect drag only if unlocked
+local function makeDraggableLimited(gui, stateFunc)
+	local dragging, offset = false, Vector2.zero
+	gui.InputBegan:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not stateFunc() then
+			dragging = true
+			offset = Vector2.new(input.Position.X - gui.Position.X.Offset, input.Position.Y - gui.Position.Y.Offset)
+		end
+	end)
+	gui.InputChanged:Connect(function(input)
+		if dragging and not stateFunc() then
+			gui.Position = UDim2.new(0, input.Position.X - offset.X, 0, input.Position.Y - offset.Y)
+		end
+	end)
+	gui.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+-- Reapply drag limiter to restore and circle
+makeDraggableLimited(autofireCircle, function() return toggleStates["AutoFireLock"] end)
+makeDraggableLimited(restoreBtn, function() return false end)
+
+-- Show drag lock button only if autofire is enabled
+toggles["AutoFire"].MouseButton1Click:Connect(function()
+	toggleStates["AutoFire"] = not toggleStates["AutoFire"]
+	toggles["AutoFire"].Text = toggleStates["AutoFire"] and "AutoFire: ON 🔫" or "AutoFire: OFF"
+	autofireCircle.Visible = toggleStates["AutoFire"]
+	lockButton.Visible = toggleStates["AutoFire"]
+end)
+
+-- Optional: future enhancement hook
+_G.PvPScriptToggle = toggleStates
+_G.PvPScriptToggles = toggles

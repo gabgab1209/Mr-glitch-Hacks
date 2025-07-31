@@ -219,3 +219,4 @@ toggles["Prediction"].MouseButton1Click:Connect(function()
 	toggleStates["Prediction"] = not toggleStates["Prediction"]
 	toggles["Prediction"].Text = toggleStates["Prediction"] and "Prediction: ON" or "Prediction: OFF"
 end)
+

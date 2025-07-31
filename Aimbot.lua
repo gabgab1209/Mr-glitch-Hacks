@@ -350,31 +350,6 @@ toggles["AutoFire"].MouseButton1Click:Connect(function()
 	autofireCircle.Visible = toggleStates["AutoFire"]
 end)
 
--- Render loop
-RunService.RenderStepped:Connect(function()
-	if toggleStates["ESP"] then updateESP() end
 
-	if toggleStates["Aimbot"] then
-		local target = getAimbotTarget()
-		if target then
-			local aimAt = target.Position
-			if toggleStates["Prediction"] and target.Parent:FindFirstChild("HumanoidRootPart") then
-				local vel = target.Parent.HumanoidRootPart.Velocity
-				aimAt = aimAt + vel * 0.125
-			end
-			camera.CFrame = CFrame.new(camera.CFrame.Position, aimAt)
-		end
-	end
-
-	if toggleStates["AutoFire"] and autofireCircle.Visible then
-		local center = autofireCircle.AbsolutePosition + autofireCircle.AbsoluteSize / 2
-		local objects = game:GetService("GuiService"):GetGuiObjectsAtPosition(center.X, center.Y)
-		for _, obj in ipairs(objects) do
-			if obj:IsA("TextButton") or obj:IsA("ImageButton") then
-				pcall(function() obj:Activate() end)
-			end
-		end
-	end
-end)
 
 

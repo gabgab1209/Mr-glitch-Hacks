@@ -219,3 +219,160 @@ toggles["Prediction"].MouseButton1Click:Connect(function()
 	toggleStates["Prediction"] = not toggleStates["Prediction"]
 	toggles["Prediction"].Text = toggleStates["Prediction"] and "Prediction: ON" or "Prediction: OFF"
 end)
+
+local camera = workspace.CurrentCamera
+local lastHealth = 100
+local recentAttackers = {}
+local autofireCircle = nil
+
+-- Track recent attackers
+local function trackAttackers(humanoid)
+	humanoid.HealthChanged:Connect(function(newHealth)
+		if newHealth < lastHealth then
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") and plr.Team ~= player.Team then
+					local dist = (camera.CFrame.Position - plr.Character.Head.Position).Magnitude
+					if dist < 300 then
+						recentAttackers[plr] = tick()
+					end
+				end
+			end
+		end
+		lastHealth = newHealth
+	end)
+end
+
+player.CharacterAdded:Connect(function(char)
+	local hum = char:WaitForChild("Humanoid")
+	trackAttackers(hum)
+end)
+
+-- Raycast wall check
+local function canSee(origin, target, char)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.FilterDescendantsInstances = {player.Character}
+	rayParams.IgnoreWater = true
+	local direction = (target - origin).Unit * 300
+	local result = workspace:Raycast(origin, direction, rayParams)
+
+	while result do
+		local hitPart = result.Instance
+		if hitPart and hitPart:IsDescendantOf(char) then
+			return true
+		elseif hitPart and hitPart.Transparency > 0.7 then
+			direction = (target - result.Position).Unit * 300
+			result = workspace:Raycast(result.Position + direction.Unit * 0.05, direction, rayParams)
+		else
+			return false
+		end
+	end
+	return false
+end
+
+-- Get aimbot target
+local function getAimbotTarget()
+	local best, closest = nil, math.huge
+
+	for plr, t in pairs(recentAttackers) do
+		if tick() - t < 3 and plr.Character and plr.Character:FindFirstChild("Head") and plr.Team ~= player.Team then
+			local head = plr.Character.Head
+			if canSee(camera.CFrame.Position, head.Position, plr.Character) then
+				return head
+			end
+		end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Team ~= player.Team and plr.Character and plr.Character:FindFirstChild("Head") then
+			local head = plr.Character.Head
+			local dist = (camera.CFrame.Position - head.Position).Magnitude
+			if dist < closest and canSee(camera.CFrame.Position, head.Position, plr.Character) then
+				closest = dist
+				best = head
+			end
+		end
+	end
+	return best
+end
+
+-- ESP logic (no distance limit)
+local function updateESP()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
+			local char = plr.Character
+			if toggleStates["ESP"] and not char:FindFirstChild("ESP") then
+				local esp = Instance.new("BillboardGui", char)
+				esp.Name = "ESP"
+				esp.Adornee = char.Head
+				esp.Size = UDim2.new(0, 100, 0, 20)
+				esp.AlwaysOnTop = true
+				local label = Instance.new("TextLabel", esp)
+				label.Size = UDim2.new(1, 0, 1, 0)
+				label.BackgroundTransparency = 1
+				label.Text = plr.Name
+				label.TextColor3 = Color3.new(1, 0, 0)
+				label.TextScaled = true
+			elseif not toggleStates["ESP"] and char:FindFirstChild("ESP") then
+				char.ESP:Destroy()
+			end
+		end
+	end
+end
+
+-- Autofire Circle UI
+autofireCircle = Instance.new("TextButton", screenGui)
+autofireCircle.Size = UDim2.new(0, 70, 0, 70)
+autofireCircle.Position = UDim2.new(0.5, -35, 0.9, -35)
+autofireCircle.Text = ""
+autofireCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+autofireCircle.BackgroundTransparency = 0.5
+autofireCircle.Visible = false
+local circleCorner = Instance.new("UICorner", autofireCircle)
+circleCorner.CornerRadius = UDim.new(1, 0)
+
+makeDraggable(autofireCircle)
+
+-- Toggle buttons
+toggles["Aimbot"].MouseButton1Click:Connect(function()
+	toggleStates["Aimbot"] = not toggleStates["Aimbot"]
+	toggles["Aimbot"].Text = toggleStates["Aimbot"] and "Aimbot: ON 🎯" or "Aimbot: OFF"
+end)
+
+toggles["ESP"].MouseButton1Click:Connect(function()
+	toggleStates["ESP"] = not toggleStates["ESP"]
+	toggles["ESP"].Text = toggleStates["ESP"] and "ESP: ON ✅" or "ESP: OFF"
+end)
+
+toggles["AutoFire"].MouseButton1Click:Connect(function()
+	toggleStates["AutoFire"] = not toggleStates["AutoFire"]
+	toggles["AutoFire"].Text = toggleStates["AutoFire"] and "AutoFire: ON 🔫" or "AutoFire: OFF"
+	autofireCircle.Visible = toggleStates["AutoFire"]
+end)
+
+-- Render loop
+RunService.RenderStepped:Connect(function()
+	if toggleStates["ESP"] then updateESP() end
+
+	if toggleStates["Aimbot"] then
+		local target = getAimbotTarget()
+		if target then
+			local aimAt = target.Position
+			if toggleStates["Prediction"] and target.Parent:FindFirstChild("HumanoidRootPart") then
+				local vel = target.Parent.HumanoidRootPart.Velocity
+				aimAt = aimAt + vel * 0.125
+			end
+			camera.CFrame = CFrame.new(camera.CFrame.Position, aimAt)
+		end
+	end
+
+	if toggleStates["AutoFire"] and autofireCircle.Visible then
+		local center = autofireCircle.AbsolutePosition + autofireCircle.AbsoluteSize / 2
+		local objects = game:GetService("GuiService"):GetGuiObjectsAtPosition(center.X, center.Y)
+		for _, obj in ipairs(objects) do
+			if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+				pcall(function() obj:Activate() end)
+			end
+		end
+	end
+end)

@@ -708,3 +708,86 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 end)
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+
+-- 📦 Hitbox Expander
+local function setHitboxSize(state)
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local root = plr.Character.HumanoidRootPart
+			root.Size = state and Vector3.new(10, 10, 10) or Vector3.new(2, 2, 1)
+			root.Transparency = state and 0.5 or 0
+			root.CanCollide = not state
+		end
+	end
+end
+
+toggles["Hitbox"].MouseButton1Click:Connect(function()
+	toggleStates["Hitbox"] = not toggleStates["Hitbox"]
+	toggles["Hitbox"].Text = toggleStates["Hitbox"] and "Hitbox: ON 📦" or "Hitbox: OFF"
+	setHitboxSize(toggleStates["Hitbox"])
+end)
+
+-- 🌐 Premium ServerHop
+local function serverHop()
+	local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(game:HttpGet(url))
+	end)
+
+	if success and data and data.data then
+		for _, server in ipairs(data.data) do
+			if server.id ~= game.JobId and server.playing < server.maxPlayers then
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+				return
+			end
+		end
+	end
+
+	warn("ServerHop failed: No open servers")
+end
+
+toggles["ServerHop"].MouseButton1Click:Connect(function()
+	serverHop()
+end)
+
+-- 🧲 Tracer System
+local tracerFolder = Instance.new("Folder", screenGui)
+tracerFolder.Name = "Tracers"
+
+local function clearTracers()
+	for _, obj in ipairs(tracerFolder:GetChildren()) do
+		if obj:IsA("Frame") then obj:Destroy() end
+	end
+end
+
+toggles["Tracer"].MouseButton1Click:Connect(function()
+	toggleStates["Tracer"] = not toggleStates["Tracer"]
+	toggles["Tracer"].Text = toggleStates["Tracer"] and "Tracer: ON 🧲" or "Tracer: OFF"
+	if not toggleStates["Tracer"] then
+		clearTracers()
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	clearTracers()
+	if not toggleStates["Tracer"] then return end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Team ~= player.Team and plr.Character and plr.Character:FindFirstChild("Head") then
+			local head = plr.Character.Head
+			local screenPos, visible = camera:WorldToViewportPoint(head.Position)
+			if visible then
+				local tracer = Instance.new("Frame", tracerFolder)
+				tracer.AnchorPoint = Vector2.new(0.5, 0)
+				tracer.Position = UDim2.new(0, camera.ViewportSize.X / 2, 0, camera.ViewportSize.Y)
+				tracer.Size = UDim2.new(0, 2, 0, (screenPos - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)).Magnitude)
+				tracer.Rotation = math.deg(math.atan2(screenPos.Y - camera.ViewportSize.Y, screenPos.X - camera.ViewportSize.X / 2)) - 90
+				tracer.BackgroundColor3 = Color3.new(1, 0, 0)
+				tracer.BorderSizePixel = 0
+			end
+		end
+	end
+end)

@@ -252,6 +252,39 @@ local function updateESP()
 	end
 end
 
+local tracerFolder = Instance.new("Folder", screenGui)
+tracerFolder.Name = "Tracers"
+
+-- Function to clear all tracer lines
+local function clearTracers()
+	for _, obj in ipairs(tracerFolder:GetChildren()) do
+		if obj:IsA("Frame") then obj:Destroy() end
+	end
+end
+
+-- Update Tracers every frame
+RunService.RenderStepped:Connect(function()
+	clearTracers()
+
+	if not toggleStates["Tracer"] then return end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Team ~= player.Team and plr.Character and plr.Character:FindFirstChild("Head") then
+			local head = plr.Character.Head
+			local headPos, onScreen = camera:WorldToViewportPoint(head.Position)
+			if onScreen then
+				local line = Instance.new("Frame")
+				line.Size = UDim2.new(0, 2, 0, (headPos - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)).Magnitude)
+				line.AnchorPoint = Vector2.new(0.5, 0)
+				line.Position = UDim2.new(0, camera.ViewportSize.X / 2, 0, camera.ViewportSize.Y)
+				line.BackgroundColor3 = Color3.new(1, 0, 0)
+				line.BorderSizePixel = 0
+				line.Rotation = math.deg(math.atan2(headPos.Y - camera.ViewportSize.Y, headPos.X - camera.ViewportSize.X / 2)) - 90
+				line.Parent = tracerFolder
+			end
+		end
+	end
+end)
 -- Advanced attacker tracking
 local function trackAttackers(humanoid)
 	humanoid.HealthChanged:Connect(function(newHealth)

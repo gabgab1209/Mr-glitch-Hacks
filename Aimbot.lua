@@ -55,7 +55,9 @@ restoreBtn.Draggable = true
 local toggleData = {
     "Aimbot", "ESP", "AutoFire", "Prediction",
     "FPS Boost", "Hitbox", "Infinite Jump", "NoClip",
-    "TP Walk", "ServerHop"
+    "TP Walk", "ServerHop",
+    -- ADD THIS LINE
+    "Tracer"
 }
 
 local toggles = {}

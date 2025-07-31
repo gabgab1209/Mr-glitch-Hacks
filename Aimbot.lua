@@ -455,3 +455,11 @@ end
 toggles["ServerHop"].MouseButton1Click:Connect(function()
 	serverHop()
 end)
+
+toggles["Tracer"].MouseButton1Click:Connect(function()
+	toggleStates["Tracer"] = not toggleStates["Tracer"]
+	toggles["Tracer"].Text = toggleStates["Tracer"] and "Tracer: ON 🧲" or "Tracer: OFF"
+	if not toggleStates["Tracer"] then
+		clearTracers()
+	end
+end)

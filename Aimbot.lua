@@ -11,7 +11,7 @@ local tracersEnabled = false
 local frameCounter = 0
 local checkDelay = 5
 local currentTarget = nil
-local drawings = {}
+local trackedCharacters = {} -- for persistent tracer drawings
 
 --// Draggable helper
 local function makeDraggable(frame)
@@ -45,7 +45,7 @@ local function makeDraggable(frame)
 	end)
 end
 
---// Create Button
+--// UI Creation
 local function createButton(name, parent, text, y)
 	local btn = Instance.new("TextButton")
 	btn.Name = name
@@ -61,7 +61,6 @@ local function createButton(name, parent, text, y)
 	return btn
 end
 
---// GUI Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NightGui"
 screenGui.ResetOnSpawn = false
@@ -110,25 +109,14 @@ local function isVisible(part)
 	return result and part:IsDescendantOf(result.Instance.Parent)
 end
 
-local function clearDrawings()
-	for _, d in ipairs(drawings) do
-		if d.box and d.box.Remove then d.box:Remove() end
-		if d.line and d.line.Remove then d.line:Remove() end
-	end
-	drawings = {}
-end
-
---// Targeting
 local function getClosestEnemy()
 	local closest, shortest = nil, math.huge
 
-	-- First: Try enemy players
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr ~= player and plr.Team ~= player.Team then
 			local char = plr.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-
 			if hrp and hum and hum.Health > 0 and isVisible(hrp) then
 				local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 				if onScreen then
@@ -142,13 +130,11 @@ local function getClosestEnemy()
 		end
 	end
 
-	-- Fallback: Search for NPCs if no players
 	if not closest then
 		for _, model in ipairs(Workspace:GetDescendants()) do
 			if model:IsA("Model") and not Players:GetPlayerFromCharacter(model) then
 				local hrp = model:FindFirstChild("HumanoidRootPart")
 				local hum = model:FindFirstChildWhichIsA("Humanoid")
-
 				if hrp and hum and hum.Health > 0 and isVisible(hrp) then
 					local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 					if onScreen then
@@ -166,38 +152,63 @@ local function getClosestEnemy()
 	return closest
 end
 
-local function drawBoxAndLine(char)
+local function updateTracerForCharacter(char)
 	local hrp = char:FindFirstChild("HumanoidRootPart")
-	local head = char:FindFirstChild("Head")
-	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	local humanoid = char:FindFirstChildWhichIsA("Humanoid")
 
-	if not (hrp and head and hum and hum.Health > 0) then return end
+	if not (hrp and humanoid and humanoid.Health > 0) then
+		if trackedCharacters[char] then
+			if trackedCharacters[char].box then trackedCharacters[char].box:Remove() end
+			if trackedCharacters[char].line then trackedCharacters[char].line:Remove() end
+			trackedCharacters[char] = nil
+		end
+		return
+	end
 
 	local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-	if not onScreen then return end
+	if not onScreen then
+		if trackedCharacters[char] then
+			trackedCharacters[char].box.Visible = false
+			trackedCharacters[char].line.Visible = false
+		end
+		return
+	end
 
-	local boxSize = Vector2.new(50, 100)
-	local topLeft = Vector2.new(screenPos.X, screenPos.Y) - boxSize / 2
+	local size = Vector2.new(50, 100)
+	local topLeft = Vector2.new(screenPos.X, screenPos.Y) - size / 2
 	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
 
-	local box = Drawing.new("Square")
+	if not trackedCharacters[char] then
+		local box = Drawing.new("Square")
+		box.Thickness = 2
+		box.Color = Color3.fromRGB(0, 255, 0)
+		box.Filled = false
+		box.Visible = true
+
+		local line = Drawing.new("Line")
+		line.Thickness = 1.5
+		line.Color = Color3.fromRGB(255, 0, 0)
+		line.Visible = true
+
+		trackedCharacters[char] = {
+			box = box,
+			line = line
+		}
+	end
+
+	local box = trackedCharacters[char].box
+	local line = trackedCharacters[char].line
+
 	box.Position = topLeft
-	box.Size = boxSize
-	box.Color = Color3.fromRGB(0, 255, 0)
-	box.Thickness = 1
+	box.Size = size
 	box.Visible = true
 
-	local line = Drawing.new("Line")
 	line.From = center
 	line.To = Vector2.new(screenPos.X, screenPos.Y)
-	line.Color = Color3.fromRGB(255, 0, 0)
-	line.Thickness = 1
 	line.Visible = true
-
-	table.insert(drawings, {box = box, line = line})
 end
 
---// Loop
+--// Render loop
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		frameCounter += 1
@@ -213,20 +224,23 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	if tracersEnabled then
-		clearDrawings()
 		for _, char in ipairs(Workspace:GetChildren()) do
 			local hum = char:FindFirstChildWhichIsA("Humanoid")
 			local hrp = char:FindFirstChild("HumanoidRootPart")
 			if hum and hrp and hum.Health > 0 then
-				drawBoxAndLine(char)
+				updateTracerForCharacter(char)
 			end
 		end
 	else
-		clearDrawings()
+		for char, drawings in pairs(trackedCharacters) do
+			if drawings.box then drawings.box:Remove() end
+			if drawings.line then drawings.line:Remove() end
+		end
+		trackedCharacters = {}
 	end
 end)
 
---// Buttons
+--// Button actions
 aimbotBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
 	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
@@ -248,6 +262,10 @@ expandBtn.MouseButton1Click:Connect(function()
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
-	clearDrawings()
+	for _, data in pairs(trackedCharacters) do
+		if data.box then data.box:Remove() end
+		if data.line then data.line:Remove() end
+	end
+	trackedCharacters = {}
 	screenGui:Destroy()
 end)

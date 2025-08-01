@@ -5,13 +5,14 @@ local Workspace = game:GetService("Workspace")
 local camera = Workspace.CurrentCamera
 local player = Players.LocalPlayer
 
---// States
+--// Settings
 local aimbotEnabled = false
 local tracersEnabled = false
 local frameCounter = 0
 local checkDelay = 5
 local currentTarget = nil
-local trackedCharacters = {} -- [Model] = {box, line}
+local trackedCharacters = {}
+local smoothness = 0.15 -- Lower is faster
 
 --// Draggable helper
 local function makeDraggable(frame)
@@ -90,7 +91,7 @@ expandBtn.Parent = screenGui
 
 makeDraggable(expandBtn)
 
---// Visibility check
+--// Wall Check
 local function isVisible(part, model)
 	local origin = camera.CFrame.Position
 	local direction = (part.Position - origin)
@@ -101,7 +102,7 @@ local function isVisible(part, model)
 	return result and result.Instance and model and result.Instance:IsDescendantOf(model)
 end
 
---// Target enemy players only
+--// Enemy Targeting
 local function getClosestEnemy()
 	local closest, shortest = nil, math.huge
 	for _, plr in ipairs(Players:GetPlayers()) do
@@ -127,7 +128,6 @@ end
 --// Tracers
 local function updateTracerForCharacter(char)
 	if char == player.Character then return end
-
 	local hrp = char:FindFirstChild("HumanoidRootPart")
 	local humanoid = char:FindFirstChildWhichIsA("Humanoid")
 	local plr = Players:GetPlayerFromCharacter(char)
@@ -139,10 +139,7 @@ local function updateTracerForCharacter(char)
 		end
 		return
 	end
-
-	-- Ignore teammates
 	if plr and plr.Team == player.Team then return end
-
 	local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 	if not onScreen then
 		if trackedCharacters[char] then
@@ -183,21 +180,34 @@ local function updateTracerForCharacter(char)
 	line.Visible = tracersEnabled
 end
 
---// Main loop
+--// Main Loop
 RunService.RenderStepped:Connect(function()
+	frameCounter += 1
+
+	-- Aimbot Logic
 	if aimbotEnabled then
-		frameCounter += 1
-		if (not currentTarget or not currentTarget.Parent or currentTarget.Parent:FindFirstChildWhichIsA("Humanoid").Health <= 0)
-			and frameCounter % checkDelay == 0 then
+		if currentTarget then
+			local char = currentTarget.Parent
+			local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+			if not humanoid or humanoid.Health <= 0 or not isVisible(currentTarget, char) then
+				currentTarget = nil
+			end
+		end
+
+		if not currentTarget and frameCounter % checkDelay == 0 then
 			currentTarget = getClosestEnemy()
 		end
 
 		if currentTarget then
-			local dir = (currentTarget.Position - camera.CFrame.Position).Unit
-			camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
+			local targetPos = currentTarget.Position
+			local newDirection = (targetPos - camera.CFrame.Position).Unit
+			local currentDir = camera.CFrame.LookVector
+			local lerped = currentDir:Lerp(newDirection, smoothness)
+			camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + lerped)
 		end
 	end
 
+	-- Tracers
 	for _, char in ipairs(Workspace:GetChildren()) do
 		if char:IsA("Model") and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildWhichIsA("Humanoid") then
 			updateTracerForCharacter(char)
@@ -205,7 +215,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
---// Button handlers
+--// Buttons
 aimbotBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
 	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")

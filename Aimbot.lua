@@ -1,97 +1,109 @@
---// Services
+-- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+
 local camera = Workspace.CurrentCamera
 local player = Players.LocalPlayer
 
---// Settings
+-- States
 local aimbotEnabled = false
 local tracersEnabled = false
+local currentTarget = nil
 local frameCounter = 0
 local checkDelay = 5
-local currentTarget = nil
 local trackedCharacters = {}
-local smoothness = 0.15 -- Lower is faster
+local smoothness = 0.15
 
---// Draggable helper
-local function makeDraggable(frame)
-	local dragging, dragInput, dragStart, startPos
-	frame.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then dragging = false end
-			end)
-		end
-	end)
-	frame.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement then
-			dragInput = input
-		end
-	end)
-	RunService.RenderStepped:Connect(function()
-		if dragging and dragInput then
-			local delta = dragInput.Position - dragStart
-			frame.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
-		end
-	end)
+-- Aesthetic UI functions
+local function roundify(instance, radius)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 6)
+	corner.Parent = instance
 end
 
---// UI creation
-local function createButton(name, parent, text, y)
+local function glowify(instance)
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1.2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = Color3.fromRGB(100, 100, 255)
+	stroke.Transparency = 0.3
+	stroke.Parent = instance
+end
+
+local function createStyledButton(name, parent, text, y)
 	local btn = Instance.new("TextButton")
 	btn.Name = name
 	btn.Text = text
-	btn.Size = UDim2.new(1, 0, 0, 30)
-	btn.Position = UDim2.new(0, 0, 0, y)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	btn.TextColor3 = Color3.fromRGB(200, 200, 255)
-	btn.Font = Enum.Font.GothamSemibold
-	btn.TextSize = 16
+	btn.Size = UDim2.new(1, -20, 0, 30)
+	btn.Position = UDim2.new(0, 10, 0, y)
+	btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	btn.TextColor3 = Color3.fromRGB(220, 220, 255)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
 	btn.BorderSizePixel = 0
+	btn.AutoButtonColor = false
+	btn.MouseEnter:Connect(function()
+		btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+	end)
+	btn.MouseLeave:Connect(function()
+		btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	end)
 	btn.Parent = parent
+	roundify(btn)
+	glowify(btn)
 	return btn
 end
 
---// GUI Setup
+-- GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "NightGui"
+screenGui.Name = "AestheticGui"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 130)
-mainFrame.Position = UDim2.new(0, 10, 0.3, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.Size = UDim2.new(0, 220, 0, 180)
+mainFrame.Position = UDim2.new(0, 20, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
+roundify(mainFrame)
+glowify(mainFrame)
 
-makeDraggable(mainFrame)
+local title = Instance.new("TextLabel")
+title.Text = "⚙️ SilentTools"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.fromRGB(140, 200, 255)
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Parent = mainFrame
 
-local aimbotBtn = createButton("AimbotToggle", mainFrame, "Aimbot: OFF", 0)
-local tracersBtn = createButton("TracersToggle", mainFrame, "Tracers: OFF", 30)
-local minimizeBtn = createButton("Minimize", mainFrame, "-", 60)
-local closeBtn = createButton("Close", mainFrame, "X", 90)
+local aimbotBtn = createStyledButton("AimbotToggle", mainFrame, "Aimbot: OFF", 30)
+local tracersBtn = createStyledButton("TracersToggle", mainFrame, "Tracers: OFF", 70)
+local minimizeBtn = createStyledButton("Minimize", mainFrame, "-", 110)
+local closeBtn = createStyledButton("Close", mainFrame, "X", 145)
 
 local expandBtn = Instance.new("TextButton")
 expandBtn.Text = "+"
 expandBtn.Size = UDim2.new(0, 30, 0, 30)
-expandBtn.Position = UDim2.new(0, 10, 0.3, 0)
-expandBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+expandBtn.Position = UDim2.new(0, 20, 0.3, 0)
+expandBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
 expandBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-expandBtn.Font = Enum.Font.GothamBold
+expandBtn.Font = Enum.Font.GothamBlack
 expandBtn.TextSize = 20
 expandBtn.Visible = false
 expandBtn.Parent = screenGui
+roundify(expandBtn)
+glowify(expandBtn)
 
-makeDraggable(expandBtn)
-
---// Wall Check
+-- Visibility Check
 local function isVisible(part, model)
 	local origin = camera.CFrame.Position
 	local direction = (part.Position - origin)
@@ -102,21 +114,21 @@ local function isVisible(part, model)
 	return result and result.Instance and model and result.Instance:IsDescendantOf(model)
 end
 
---// Enemy Targeting
+-- Get Closest Enemy (Head)
 local function getClosestEnemy()
 	local closest, shortest = nil, math.huge
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr ~= player and plr.Team ~= player.Team then
 			local char = plr.Character
-			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			local head = char and char:FindFirstChild("Head")
 			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-			if hrp and hum and hum.Health > 0 and isVisible(hrp, char) then
-				local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+			if head and hum and hum.Health > 0 and isVisible(head, char) then
+				local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
 				if onScreen then
 					local dist = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
 					if dist < shortest then
 						shortest = dist
-						closest = hrp
+						closest = head
 					end
 				end
 			end
@@ -125,13 +137,15 @@ local function getClosestEnemy()
 	return closest
 end
 
---// Tracers
+-- Tracer Drawing
 local function updateTracerForCharacter(char)
 	if char == player.Character then return end
 	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
 	local humanoid = char:FindFirstChildWhichIsA("Humanoid")
 	local plr = Players:GetPlayerFromCharacter(char)
-	if not (hrp and humanoid and humanoid.Health > 0) then
+
+	if not (hrp and head and humanoid and humanoid.Health > 0) then
 		if trackedCharacters[char] then
 			trackedCharacters[char].box:Remove()
 			trackedCharacters[char].line:Remove()
@@ -140,8 +154,11 @@ local function updateTracerForCharacter(char)
 		return
 	end
 	if plr and plr.Team == player.Team then return end
+
 	local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-	if not onScreen then
+	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+
+	if not onScreen or GuiService.MenuIsOpen or UserInputService:GetFocusedTextBox() then
 		if trackedCharacters[char] then
 			trackedCharacters[char].box.Visible = false
 			trackedCharacters[char].line.Visible = false
@@ -151,7 +168,6 @@ local function updateTracerForCharacter(char)
 
 	local size = Vector2.new(50, 100)
 	local topLeft = Vector2.new(screenPos.X, screenPos.Y) - size / 2
-	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
 
 	if not trackedCharacters[char] then
 		local box = Drawing.new("Square")
@@ -180,11 +196,11 @@ local function updateTracerForCharacter(char)
 	line.Visible = tracersEnabled
 end
 
---// Main Loop
+-- Render Loop
 RunService.RenderStepped:Connect(function()
 	frameCounter += 1
 
-	-- Aimbot Logic
+	-- Aimbot
 	if aimbotEnabled then
 		if currentTarget then
 			local char = currentTarget.Parent
@@ -199,11 +215,9 @@ RunService.RenderStepped:Connect(function()
 		end
 
 		if currentTarget then
-			local targetPos = currentTarget.Position
-			local newDirection = (targetPos - camera.CFrame.Position).Unit
-			local currentDir = camera.CFrame.LookVector
-			local lerped = currentDir:Lerp(newDirection, smoothness)
-			camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + lerped)
+			local newDir = (currentTarget.Position - camera.CFrame.Position).Unit
+			local lerp = camera.CFrame.LookVector:Lerp(newDir, smoothness)
+			camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + lerp)
 		end
 	end
 
@@ -215,7 +229,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
---// Buttons
+-- Button Callbacks
 aimbotBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
 	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")

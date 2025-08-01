@@ -92,3 +92,170 @@ expandBtn.Font = Enum.Font.GothamBlack
 expandBtn.TextSize = 20
 roundify(expandBtn)
 glowify(expandBtn)
+
+-- WALL CHECK
+local function isVisible(part, model)
+	local origin = camera.CFrame.Position
+	local direction = (part.Position - origin)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.FilterDescendantsInstances = {player.Character, camera}
+	local result = Workspace:Raycast(origin, direction, rayParams)
+	return result and result.Instance and model and result.Instance:IsDescendantOf(model)
+end
+
+-- ENEMY HEAD FINDER
+local function getClosestEnemy()
+	local closest, shortest = nil, math.huge
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Team ~= player.Team then
+			local char = plr.Character
+			local head = char and char:FindFirstChild("Head")
+			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+			if head and hum and hum.Health > 0 and isVisible(head, char) then
+				local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+				if onScreen then
+					local dist = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
+					if dist < shortest then
+						shortest = dist
+						closest = head
+					end
+				end
+			end
+		end
+	end
+	return closest
+end
+
+-- UPDATE TRACERS
+local function updateTracerForCharacter(char)
+	if char == player.Character then return end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
+	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	local plr = Players:GetPlayerFromCharacter(char)
+
+	if not (hrp and head and hum and hum.Health > 0) or (plr and plr.Team == player.Team) then
+		if trackedCharacters[char] then
+			for _, obj in pairs(trackedCharacters[char]) do
+				if typeof(obj) == "Drawing" then obj:Remove() end
+			end
+			trackedCharacters[char] = nil
+		end
+		return
+	end
+
+	local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+	if not onScreen or GuiService.MenuIsOpen or UserInputService:GetFocusedTextBox() then
+		if trackedCharacters[char] then
+			for _, obj in pairs(trackedCharacters[char]) do
+				obj.Visible = false
+			end
+		end
+		return
+	end
+
+	if not trackedCharacters[char] then
+		trackedCharacters[char] = {
+			box = Drawing.new("Square"),
+			line = Drawing.new("Line"),
+			hpText = Drawing.new("Text")
+		}
+		trackedCharacters[char].box.Filled = false
+		trackedCharacters[char].box.Thickness = 2
+		trackedCharacters[char].line.Thickness = 1.5
+		trackedCharacters[char].hpText.Size = 14
+		trackedCharacters[char].hpText.Center = true
+		trackedCharacters[char].hpText.Outline = true
+		trackedCharacters[char].hpText.Font = 2
+	end
+
+	local box = trackedCharacters[char].box
+	local line = trackedCharacters[char].line
+	local text = trackedCharacters[char].hpText
+
+	local distance = (camera.CFrame.Position - hrp.Position).Magnitude
+	local size = Vector2.new(50, 100) / (distance / 25)
+	local topLeft = Vector2.new(screenPos.X, screenPos.Y) - size / 2
+	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+
+	local low = hum.Health <= 30
+	box.Color = low and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(0, 255, 0)
+	line.Color = low and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 0)
+
+	box.Thickness = (currentTarget and currentTarget.Parent == char) and 3 or 2
+
+	box.Position = topLeft
+	box.Size = size
+	box.Visible = tracersEnabled
+
+	line.From = center
+	line.To = Vector2.new(screenPos.X, screenPos.Y)
+	line.Visible = tracersEnabled
+
+	text.Position = Vector2.new(screenPos.X, screenPos.Y - size.Y / 2 - 10)
+	text.Text = string.format("%.0f HP", hum.Health)
+	text.Color = low and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 255, 255)
+	text.Visible = tracersEnabled
+end
+
+-- MAIN LOOP
+RunService.RenderStepped:Connect(function()
+	frameCounter += 1
+
+	if aimbotEnabled then
+		if currentTarget then
+			local char = currentTarget.Parent
+			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+			if not hum or hum.Health <= 0 or not isVisible(currentTarget, char) then
+				currentTarget = nil
+			end
+		end
+		if not currentTarget and frameCounter % checkDelay == 0 then
+			currentTarget = getClosestEnemy()
+		end
+		if currentTarget then
+			local dir = (currentTarget.Position - camera.CFrame.Position).Unit
+			local smooth = camera.CFrame.LookVector:Lerp(dir, smoothness)
+			camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + smooth)
+		end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Team ~= player.Team then
+			local char = plr.Character
+			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then
+				updateTracerForCharacter(char)
+			end
+		end
+	end
+end)
+
+-- UI BUTTON LOGIC
+aimbotBtn.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+end)
+
+tracersBtn.MouseButton1Click:Connect(function()
+	tracersEnabled = not tracersEnabled
+	tracersBtn.Text = "Tracers: " .. (tracersEnabled and "ON" or "OFF")
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+	frame.Visible = false
+	expandBtn.Visible = true
+end)
+
+expandBtn.MouseButton1Click:Connect(function()
+	frame.Visible = true
+	expandBtn.Visible = false
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	for _, data in pairs(trackedCharacters) do
+		for _, obj in pairs(data) do if obj.Remove then obj:Remove() end end
+	end
+	gui:Destroy()
+end)

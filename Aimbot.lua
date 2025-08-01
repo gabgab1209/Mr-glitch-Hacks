@@ -16,7 +16,6 @@ local trackedCharacters = {} -- [Model] = {box, line}
 --// Draggable helper
 local function makeDraggable(frame)
 	local dragging, dragInput, dragStart, startPos
-
 	frame.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
@@ -27,13 +26,11 @@ local function makeDraggable(frame)
 			end)
 		end
 	end)
-
 	frame.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement then
 			dragInput = input
 		end
 	end)
-
 	RunService.RenderStepped:Connect(function()
 		if dragging and dragInput then
 			local delta = dragInput.Position - dragStart
@@ -58,6 +55,7 @@ local function createButton(name, parent, text, y)
 	return btn
 end
 
+--// GUI Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NightGui"
 screenGui.ResetOnSpawn = false
@@ -88,23 +86,22 @@ expandBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 expandBtn.Font = Enum.Font.GothamBold
 expandBtn.TextSize = 20
 expandBtn.Visible = false
-expandBtn.Active = true
 expandBtn.Parent = screenGui
 
 makeDraggable(expandBtn)
 
---// Utility: Wall check
-local function isVisible(part)
+--// Visibility check
+local function isVisible(part, model)
 	local origin = camera.CFrame.Position
 	local direction = (part.Position - origin)
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
 	rayParams.FilterDescendantsInstances = {player.Character, camera}
 	local result = Workspace:Raycast(origin, direction, rayParams)
-	return result and part:IsDescendantOf(result.Instance.Parent)
+	return result and result.Instance and model and result.Instance:IsDescendantOf(model)
 end
 
---// Only return enemy players
+--// Target enemy players only
 local function getClosestEnemy()
 	local closest, shortest = nil, math.huge
 	for _, plr in ipairs(Players:GetPlayers()) do
@@ -112,7 +109,7 @@ local function getClosestEnemy()
 			local char = plr.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			local hum = char and char:FindFirstChildWhichIsA("Humanoid")
-			if hrp and hum and hum.Health > 0 and isVisible(hrp) then
+			if hrp and hum and hum.Health > 0 and isVisible(hrp, char) then
 				local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 				if onScreen then
 					local dist = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
@@ -127,11 +124,13 @@ local function getClosestEnemy()
 	return closest
 end
 
---// Tracer drawing
+--// Tracers
 local function updateTracerForCharacter(char)
+	if char == player.Character then return end
+
 	local hrp = char:FindFirstChild("HumanoidRootPart")
 	local humanoid = char:FindFirstChildWhichIsA("Humanoid")
-
+	local plr = Players:GetPlayerFromCharacter(char)
 	if not (hrp and humanoid and humanoid.Health > 0) then
 		if trackedCharacters[char] then
 			trackedCharacters[char].box:Remove()
@@ -140,6 +139,9 @@ local function updateTracerForCharacter(char)
 		end
 		return
 	end
+
+	-- Ignore teammates
+	if plr and plr.Team == player.Team then return end
 
 	local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
 	if not onScreen then
@@ -181,11 +183,11 @@ local function updateTracerForCharacter(char)
 	line.Visible = tracersEnabled
 end
 
---// Render logic
+--// Main loop
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		frameCounter += 1
-		if (not currentTarget or not currentTarget.Parent:FindFirstChildWhichIsA("Humanoid") or currentTarget.Parent:FindFirstChildWhichIsA("Humanoid").Health <= 0)
+		if (not currentTarget or not currentTarget.Parent or currentTarget.Parent:FindFirstChildWhichIsA("Humanoid").Health <= 0)
 			and frameCounter % checkDelay == 0 then
 			currentTarget = getClosestEnemy()
 		end
@@ -196,15 +198,14 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 
-	-- Always update tracer visuals
 	for _, char in ipairs(Workspace:GetChildren()) do
-		if char:FindFirstChildWhichIsA("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+		if char:IsA("Model") and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildWhichIsA("Humanoid") then
 			updateTracerForCharacter(char)
 		end
 	end
 end)
 
---// UI Buttons
+--// Button handlers
 aimbotBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
 	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
@@ -227,8 +228,8 @@ end)
 
 closeBtn.MouseButton1Click:Connect(function()
 	for _, data in pairs(trackedCharacters) do
-		data.box:Remove()
-		data.line:Remove()
+		if data.box then data.box:Remove() end
+		if data.line then data.line:Remove() end
 	end
 	trackedCharacters = {}
 	screenGui:Destroy()
